@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual Environment
+venv/
+env/
+.venv/
+ENV/
+
+# Django
+*.log
+logs/*
+!logs/.gitkeep
+media/*
+!media/.gitkeep
+db.sqlite3
+db.sqlite3-journal
+staticfiles/
+
+# Environment Variables
+.env
+.env.local
+.env.*.local
+
+# ML Models & Weights (large files, store weights outside git)
+ml_models/*
+!ml_models/.gitkeep
+*.bin
+*.pt
+*.pth
+*.safetensors
+*.onnx
+*.h5
+
+# Node / Tailwind
+node_modules/
+package-lock.json
+
+# IDE & Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db

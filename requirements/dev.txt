@@ -1,0 +1,10 @@
+-r base.txt
+
+# Development Tooling & Debugging
+django-debug-toolbar>=4.2.0
+
+# Testing & Code Quality
+pytest>=7.4.0
+pytest-django>=4.7.0
+flake8>=6.1.0
+black>=23.12.0
