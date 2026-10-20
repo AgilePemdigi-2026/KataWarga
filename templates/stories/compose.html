@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+
+{% block title %}Susun User Story — KataWarga{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto space-y-6">
+    <div class="flex items-center justify-between pb-4 border-b border-gray-800">
+        <div>
+            <h1 class="text-2xl font-bold text-white">Menyusun dan Memprioritaskan User Story</h1>
+            <p class="text-sm text-gray-400 mt-1">Elisitasi otomatis cluster tervalidasi menjadi format standar user story.</p>
+        </div>
+
+        <!-- Tombol Susun User Story (FR-USR-01) -->
+        <form method="post" action="/susun-user-story" hx-post="/susun-user-story" hx-target="#daftar-user-story">
+            {% csrf_token %}
+            <button type="submit"
+                    class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-medium rounded-lg text-sm transition shadow-lg flex items-center space-x-2">
+                <span>⚡</span>
+                <span>Susun User Story</span>
+            </button>
+        </form>
+    </div>
+
+    <!-- Section daftar-user-story (FR-USR-08, Gherkin acceptance) -->
+    <section id="daftar-user-story" class="space-y-4">
+        {% include 'stories/partials/_story_list.html' %}
+    </section>
+</div>
+{% endblock %}
