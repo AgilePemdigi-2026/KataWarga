@@ -1,0 +1,126 @@
+{% extends 'base.html' %}
+
+{% block title %}Detail User Story #{{ story.id }} — KataWarga{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-6">
+    <!-- Breadcrumb / Back -->
+    <div class="flex items-center space-x-2 text-xs text-gray-400">
+        <a href="/user-story" class="hover:text-white">&larr; Kembali ke Papan Backlog</a>
+        <span>/</span>
+        <span class="text-gray-200">User Story #{{ story.id }}</span>
+    </div>
+
+    <!-- Main Card -->
+    <div class="bg-gray-800 border border-gray-700 rounded-xl p-6 space-y-6 shadow-lg">
+        <!-- Header Info -->
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-gray-700">
+            <div>
+                <span class="text-xs text-gray-400 uppercase tracking-wider">User Story #{{ story.id }}</span>
+                <h1 class="text-xl font-bold text-white mt-1">{{ story.cluster.nama_topik }}</h1>
+            </div>
+
+            <div class="flex items-center space-x-3">
+                <!-- Status (data-testid="status", nilai persis: "Menunggu Persetujuan", "Disetujui", "Diabaikan") -->
+                <span data-testid="status" class="px-3 py-1 rounded-full text-xs font-semibold
+                    {% if story.status_persetujuan == 'DISETUJUI' %}bg-green-900/60 text-green-300 border border-green-700
+                    {% elif story.status_persetujuan == 'DIABAIKAN' %}bg-gray-700 text-gray-300 border border-gray-600
+                    {% else %}bg-blue-900/60 text-blue-300 border border-blue-700{% endif %}">
+                    {{ story.get_status_persetujuan_display }}
+                </span>
+
+                <!-- Prioritas (data-testid="prioritas", nilai persis: "Tinggi", "Sedang", "Rendah") -->
+                <span data-testid="prioritas" class="px-3 py-1 rounded-full text-xs font-semibold
+                    {% if story.kategori_prioritas == 'TINGGI' %}bg-red-900/60 text-red-300 border border-red-700
+                    {% elif story.kategori_prioritas == 'SEDANG' %}bg-yellow-900/60 text-yellow-300 border border-yellow-700
+                    {% else %}bg-green-900/60 text-green-300 border border-green-700{% endif %}">
+                    {{ story.get_kategori_prioritas_display }}
+                </span>
+            </div>
+        </div>
+
+        <!-- Kalimat User Story -->
+        <div class="bg-gray-900/60 border border-gray-700/60 rounded-lg p-5">
+            <h2 class="text-xs uppercase tracking-wider text-gray-400 mb-2 font-medium">Kalimat User Story</h2>
+            <p class="text-lg text-white font-medium leading-relaxed">
+                {{ story.kalimat }}
+            </p>
+        </div>
+
+        <!-- Rincian Skor (FR-USR-10) -->
+        <div>
+            <h2 class="text-xs uppercase tracking-wider text-gray-400 mb-3 font-medium">Rincian Perhitungan Skor</h2>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div class="bg-gray-900/40 border border-gray-700/40 rounded-lg p-3 text-center">
+                    <span class="text-xs text-gray-400 block">Total Skor</span>
+                    <span class="text-xl font-bold text-white">{{ story.skor_prioritas }}</span>
+                </div>
+                <div class="bg-gray-900/40 border border-gray-700/40 rounded-lg p-3 text-center">
+                    <span class="text-xs text-gray-400 block">Ulasan Unik (n)</span>
+                    <span class="text-xl font-bold text-gray-200">{{ metrik.n }}</span>
+                </div>
+                <div class="bg-gray-900/40 border border-gray-700/40 rounded-lg p-3 text-center">
+                    <span class="text-xs text-gray-400 block">Komponen Frekuensi (F)</span>
+                    <span class="text-xl font-bold text-blue-400">{{ metrik.f }}</span>
+                </div>
+                <div class="bg-gray-900/40 border border-gray-700/40 rounded-lg p-3 text-center">
+                    <span class="text-xs text-gray-400 block">Rata-rata Sentimen (S)</span>
+                    <span class="text-xl font-bold text-yellow-400">{{ metrik.s }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alasan Diabaikan jika ada -->
+        {% if story.status_persetujuan == 'DIABAIKAN' and story.alasan_diabaikan %}
+        <div class="p-4 bg-red-900/30 border border-red-800 rounded-lg text-xs text-red-300">
+            <strong>Alasan Diabaikan:</strong> {{ story.alasan_diabaikan }}
+        </div>
+        {% endif %}
+
+        <!-- Aksi Persetujuan PO (HANYA saat MENUNGGU_PERSETUJUAN) (FR-APP-03, FR-APP-04) -->
+        {% if story.status_persetujuan == 'MENUNGGU_PERSETUJUAN' %}
+        <div class="pt-6 border-t border-gray-700 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+            <!-- Form Setujui -->
+            <form method="post" action="/user-story/{{ story.id }}/setujui">
+                {% csrf_token %}
+                <button type="submit"
+                        class="w-full sm:w-auto px-6 py-2.5 bg-green-600 hover:bg-green-700 active:bg-green-800 text-white font-medium rounded-lg text-sm transition shadow-lg flex items-center justify-center space-x-2">
+                    <span>✓</span>
+                    <span>Setujui</span>
+                </button>
+            </form>
+
+            <!-- Form Abaikan dengan alasan opsional -->
+            <form method="post" action="/user-story/{{ story.id }}/abaikan" class="flex flex-col sm:flex-row items-center gap-2">
+                {% csrf_token %}
+                <input type="text" name="alasan" placeholder="Alasan diabaikan (opsional)..."
+                       class="w-full sm:w-64 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-200 placeholder-gray-500 focus:outline-none focus:border-red-500">
+                <button type="submit"
+                        class="w-full sm:w-auto px-5 py-2.5 bg-red-600/80 hover:bg-red-700 active:bg-red-800 text-white font-medium rounded-lg text-sm transition shadow flex items-center justify-center space-x-2">
+                    <span>✕</span>
+                    <span>Abaikan</span>
+                </button>
+            </form>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Ulasan Sumber (FR-APP-02) -->
+    <div class="bg-gray-800 border border-gray-700 rounded-xl p-6 space-y-4">
+        <h2 class="text-sm font-semibold text-white uppercase tracking-wider">Ulasan Sumber Cluster ({{ ulasan_sumber|length }})</h2>
+        <div class="space-y-3 max-h-80 overflow-y-auto pr-2">
+            {% for u in ulasan_sumber %}
+            <div class="bg-gray-900/60 border border-gray-700/50 rounded-lg p-3 text-xs space-y-1">
+                <div class="flex items-center justify-between text-gray-400">
+                    <span>{{ u.username_reviewer|default:"Pengulas" }} • {{ u.tanggal_ulasan }}</span>
+                    <span class="text-yellow-400">{{ u.skor_bintang }} ★</span>
+                </div>
+                <p class="text-gray-200">{{ u.isi_ulasan }}</p>
+            </div>
+            {% empty %}
+            <p class="text-xs text-gray-500">Tidak ada ulasan sumber yang dimuat.</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

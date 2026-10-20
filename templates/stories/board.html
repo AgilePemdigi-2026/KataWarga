@@ -1,0 +1,186 @@
+{% extends 'base.html' %}
+
+{% block title %}User Story Backlog — KataWarga{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header & Filter -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-gray-800">
+        <div>
+            <h1 class="text-2xl font-bold text-white">User Story Backlog</h1>
+            <p class="text-sm text-gray-400 mt-1">Papan validasi dan persetujuan user story (Product Owner quality gate).</p>
+        </div>
+
+        <!-- Filter Form (FR-APP-01) -->
+        <form method="get" action="/user-story" class="flex flex-wrap items-center gap-3">
+            <div>
+                <label for="filter-aplikasi" class="sr-only">Aplikasi</label>
+                <select id="filter-aplikasi" name="aplikasi" onchange="this.form.submit()"
+                        class="bg-gray-800 border border-gray-700 text-gray-200 text-xs rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500">
+                    <option value="">Semua Aplikasi</option>
+                    {% for app in aplikasi_list %}
+                    <option value="{{ app.package_name }}" {% if selected_aplikasi == app.package_name or selected_aplikasi == app.id|stringformat:"s" %}selected{% endif %}>
+                        {{ app.nama_aplikasi }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label for="filter-prioritas" class="sr-only">Prioritas</label>
+                <select id="filter-prioritas" name="prioritas" onchange="this.form.submit()"
+                        class="bg-gray-800 border border-gray-700 text-gray-200 text-xs rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500">
+                    <option value="">Semua Prioritas</option>
+                    <option value="TINGGI" {% if selected_prioritas == 'TINGGI' %}selected{% endif %}>Tinggi</option>
+                    <option value="SEDANG" {% if selected_prioritas == 'SEDANG' %}selected{% endif %}>Sedang</option>
+                    <option value="RENDAH" {% if selected_prioritas == 'RENDAH' %}selected{% endif %}>Rendah</option>
+                </select>
+            </div>
+
+            {% if selected_aplikasi or selected_prioritas %}
+            <a href="/user-story" class="text-xs text-gray-400 hover:text-white underline">Reset</a>
+            {% endif %}
+        </form>
+    </div>
+
+    <!-- Papan Kanban 3 Kolom: To Review, Sprint Backlog, Dismissed (FR-APP-07) -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+        <!-- Kolom 1: To Review (MENUNGGU_PERSETUJUAN) -->
+        <div class="bg-gray-800/60 border border-gray-700/80 rounded-xl p-4 flex flex-col min-h-[500px]">
+            <div class="flex items-center justify-between pb-3 mb-4 border-b border-gray-700">
+                <div class="flex items-center space-x-2">
+                    <span class="w-3 h-3 rounded-full bg-blue-500"></span>
+                    <h2 class="font-semibold text-white text-sm">To Review</h2>
+                </div>
+                <span class="text-xs px-2 py-0.5 rounded-full bg-gray-700 text-gray-300">{{ to_review|length }}</span>
+            </div>
+
+            <div class="space-y-3 flex-1">
+                {% for story in to_review %}
+                <div class="bg-gray-800 border border-gray-700 hover:border-blue-500/50 rounded-lg p-4 transition shadow-sm space-y-3">
+                    <div class="flex items-center justify-between text-xs">
+                        <!-- Tag Aplikasi -->
+                        <span class="px-2 py-0.5 rounded bg-blue-900/40 text-blue-300 border border-blue-800">
+                            {{ story.cluster.anggota_set.first.hasil_ekstraksi.ulasan.aplikasi.nama_aplikasi|default:"Aplikasi" }}
+                        </span>
+                        <!-- Kategori & Skor -->
+                        <div class="flex items-center space-x-1">
+                            <span class="font-medium {% if story.kategori_prioritas == 'TINGGI' %}text-red-400{% elif story.kategori_prioritas == 'SEDANG' %}text-yellow-400{% else %}text-green-400{% endif %}">
+                                {{ story.get_kategori_prioritas_display }}
+                            </span>
+                            <span class="text-gray-500">•</span>
+                            <span class="text-gray-300 font-bold">{{ story.skor_prioritas }}</span>
+                        </div>
+                    </div>
+
+                    <div class="text-xs font-medium text-blue-300">
+                        {{ story.cluster.nama_topik }}
+                    </div>
+
+                    <!-- Kalimat User Story -->
+                    <p class="text-xs text-gray-200 leading-relaxed font-normal">
+                        {{ story.kalimat }}
+                    </p>
+
+                    <div class="pt-2 border-t border-gray-700/50 flex justify-between items-center text-xs">
+                        <span class="text-gray-400">{{ story.cluster.skor_signifikansi }} ulasan</span>
+                        <a href="/user-story/{{ story.id }}" class="text-blue-400 hover:underline font-medium">Review &rarr;</a>
+                    </div>
+                </div>
+                {% empty %}
+                <p class="text-xs text-gray-500 text-center py-8">Tidak ada item yang perlu direview.</p>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Kolom 2: Sprint Backlog (DISETUJUI) -->
+        <div class="bg-gray-800/60 border border-gray-700/80 rounded-xl p-4 flex flex-col min-h-[500px]">
+            <div class="flex items-center justify-between pb-3 mb-4 border-b border-gray-700">
+                <div class="flex items-center space-x-2">
+                    <span class="w-3 h-3 rounded-full bg-green-500"></span>
+                    <h2 class="font-semibold text-white text-sm">Sprint Backlog</h2>
+                </div>
+                <span class="text-xs px-2 py-0.5 rounded-full bg-gray-700 text-gray-300">{{ sprint_backlog|length }}</span>
+            </div>
+
+            <div class="space-y-3 flex-1">
+                {% for story in sprint_backlog %}
+                <div class="bg-gray-800 border border-gray-700 hover:border-green-500/50 rounded-lg p-4 transition shadow-sm space-y-3">
+                    <div class="flex items-center justify-between text-xs">
+                        <!-- Tag Aplikasi -->
+                        <span class="px-2 py-0.5 rounded bg-green-900/40 text-green-300 border border-green-800">
+                            {{ story.cluster.anggota_set.first.hasil_ekstraksi.ulasan.aplikasi.nama_aplikasi|default:"Aplikasi" }}
+                        </span>
+                        <!-- Kategori & Skor -->
+                        <div class="flex items-center space-x-1">
+                            <span class="font-medium {% if story.kategori_prioritas == 'TINGGI' %}text-red-400{% elif story.kategori_prioritas == 'SEDANG' %}text-yellow-400{% else %}text-green-400{% endif %}">
+                                {{ story.get_kategori_prioritas_display }}
+                            </span>
+                            <span class="text-gray-500">•</span>
+                            <span class="text-gray-300 font-bold">{{ story.skor_prioritas }}</span>
+                        </div>
+                    </div>
+
+                    <div class="text-xs font-medium text-green-300">
+                        {{ story.cluster.nama_topik }}
+                    </div>
+
+                    <p class="text-xs text-gray-200 leading-relaxed font-normal">
+                        {{ story.kalimat }}
+                    </p>
+
+                    <div class="pt-2 border-t border-gray-700/50 flex justify-between items-center text-xs">
+                        <span class="text-green-400">✓ Disetujui</span>
+                        <a href="/user-story/{{ story.id }}" class="text-gray-400 hover:text-white font-medium">Detail</a>
+                    </div>
+                </div>
+                {% empty %}
+                <p class="text-xs text-gray-500 text-center py-8">Belum ada user story yang disetujui.</p>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Kolom 3: Dismissed (DIABAIKAN) -->
+        <div class="bg-gray-800/60 border border-gray-700/80 rounded-xl p-4 flex flex-col min-h-[500px]">
+            <div class="flex items-center justify-between pb-3 mb-4 border-b border-gray-700">
+                <div class="flex items-center space-x-2">
+                    <span class="w-3 h-3 rounded-full bg-gray-500"></span>
+                    <h2 class="font-semibold text-white text-sm">Dismissed</h2>
+                </div>
+                <span class="text-xs px-2 py-0.5 rounded-full bg-gray-700 text-gray-300">{{ dismissed|length }}</span>
+            </div>
+
+            <div class="space-y-3 flex-1">
+                {% for story in dismissed %}
+                <div class="bg-gray-800/60 border border-gray-700/60 rounded-lg p-4 space-y-3 opacity-75">
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="px-2 py-0.5 rounded bg-gray-700 text-gray-400">
+                            {{ story.cluster.anggota_set.first.hasil_ekstraksi.ulasan.aplikasi.nama_aplikasi|default:"Aplikasi" }}
+                        </span>
+                        <span class="text-gray-400 font-medium">Skor {{ story.skor_prioritas }}</span>
+                    </div>
+
+                    <div class="text-xs font-medium text-gray-400">
+                        {{ story.cluster.nama_topik }}
+                    </div>
+
+                    <p class="text-xs text-gray-400 leading-relaxed">
+                        {{ story.kalimat }}
+                    </p>
+
+                    {% if story.alasan_diabaikan %}
+                    <p class="text-xs text-red-400 italic">Alasan: {{ story.alasan_diabaikan }}</p>
+                    {% endif %}
+
+                    <div class="pt-2 border-t border-gray-700/40 flex justify-end text-xs">
+                        <a href="/user-story/{{ story.id }}" class="text-gray-400 hover:text-white">Detail</a>
+                    </div>
+                </div>
+                {% empty %}
+                <p class="text-xs text-gray-500 text-center py-8">Tidak ada user story yang diabaikan.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
