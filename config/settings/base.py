@@ -4,7 +4,13 @@ KataWarga — Base settings.
 import os
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
+
+# Baca file .env di root proyek (lihat .env.example). Variabel yang sudah
+# diset di environment/shell tetap menang (override=False).
+load_dotenv(BASE_DIR / '.env')
 
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-dev-only-katawarga')
 
@@ -61,13 +67,14 @@ WSGI_APPLICATION = 'config.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('POSTGRES_DB', 'katawarga'),
-        'USER': os.environ.get('POSTGRES_USER', 'postgres'),
-        'PASSWORD': os.environ.get('POSTGRES_PASSWORD', ''),
-        'HOST': os.environ.get('POSTGRES_HOST', '127.0.0.1'),
-        'PORT': os.environ.get('POSTGRES_PORT', '5433'),
+        'NAME': os.environ.get('DB_NAME', 'katawarga'),
+        'USER': os.environ.get('DB_USER', 'postgres'),
+        'PASSWORD': os.environ.get('DB_PASSWORD', 'postgres'),
+        'HOST': os.environ.get('DB_HOST', '127.0.0.1'),
+        'PORT': os.environ.get('DB_PORT', '5433'),
     }
 }
+
 AUTH_USER_MODEL = 'accounts.User'
 
 AUTH_PASSWORD_VALIDATORS = [
@@ -93,7 +100,7 @@ LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/login/'
 
 # Stub peran dev (§4): dipakai selama Sprint 1-2 sebelum auth jadi
-DEV_ACTING_ROLE = 'REQUIREMENTS_ENGINEER'
+DEV_ACTING_ROLE = os.environ.get('DEV_ACTING_ROLE', 'REQUIREMENTS_ENGINEER')
 
 # Parameter skor prioritas user story (§7, TBD-02)  # TBD-02 / USULAN
 STORY_SCORING = {
