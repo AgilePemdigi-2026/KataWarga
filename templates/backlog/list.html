@@ -1,0 +1,98 @@
+
+{% extends "base.html" %}
+
+{% block title %}Backlog | KataWarga{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-6">
+
+    <!-- Judul halaman -->
+    <div>
+        <h1 class="text-2xl font-bold text-white">Sprint Backlog</h1>
+        <p class="text-sm text-gray-400 mt-1">
+            Daftar User Story yang sudah disetujui Product Owner.
+        </p>
+    </div>
+
+    <!-- Daftar backlog -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+
+        {% for item in backlog_items %}
+        <div class="bg-gray-800 border border-gray-700 rounded-xl p-5 space-y-4">
+
+            <!-- Prioritas dan skor -->
+            <div class="flex items-center justify-between gap-2">
+                <span class="text-xs font-semibold px-2 py-1 rounded
+                    {% if item.user_story.kategori_prioritas == 'TINGGI' %}
+                        bg-red-900/40 text-red-300
+                    {% elif item.user_story.kategori_prioritas == 'SEDANG' %}
+                        bg-yellow-900/40 text-yellow-300
+                    {% else %}
+                        bg-green-900/40 text-green-300
+                    {% endif %}">
+                    {{ item.user_story.get_kategori_prioritas_display }}
+                </span>
+
+                <span class="text-xs text-gray-400">
+                    Skor: {{ item.user_story.skor_prioritas }}
+                </span>
+            </div>
+
+            <!-- Isi User Story -->
+            <div class="text-sm text-gray-200 leading-relaxed">
+                Sebagai
+                <span class="text-blue-300 font-semibold">{{ item.user_story.peran }}</span>,
+                saya ingin
+                <span class="text-red-300 font-semibold">{{ item.user_story.kebutuhan }}</span>,
+                sehingga
+                <span class="text-green-300 font-semibold">{{ item.user_story.alasan }}</span>.
+            </div>
+
+            <!-- Status pengerjaan -->
+            <div class="border-t border-gray-700 pt-4 space-y-3">
+
+                <div class="flex items-center justify-between gap-2">
+                    <span class="text-xs text-gray-400">Status eksekusi</span>
+
+                    <span class="text-xs font-semibold px-2 py-1 rounded
+                        {% if item.status_eksekusi == 'SELESAI' %}
+                            bg-green-900/40 text-green-300
+                        {% elif item.status_eksekusi == 'SEDANG_DIKERJAKAN' %}
+                            bg-blue-900/40 text-blue-300
+                        {% else %}
+                            bg-purple-900/40 text-purple-300
+                        {% endif %}">
+                        {{ item.get_status_eksekusi_display }}
+                    </span>
+                </div>
+
+                {% if item.pengguna %}
+                <p class="text-xs text-gray-400">
+                    Developer: {{ item.pengguna.username }}
+                </p>
+                {% endif %}
+
+                <a href="{% url 'stories:detail' item.user_story.pk %}"
+                   class="block text-center text-sm text-blue-300 hover:text-blue-200 border border-gray-600 rounded-lg py-2 transition">
+                    Lihat Detail User Story
+                </a>
+
+            </div>
+        </div>
+
+        {% empty %}
+        <div class="lg:col-span-3 bg-gray-800 border border-gray-700 rounded-xl p-10 text-center">
+            <h2 class="text-lg font-semibold text-white">Belum ada item backlog</h2>
+            <p class="text-sm text-gray-400 mt-2">
+                User Story yang disetujui Product Owner akan muncul di sini.
+            </p>
+            <a href="{% url 'stories:board' %}"
+               class="inline-block mt-5 px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-semibold text-white">
+                Buka User Story Board
+            </a>
+        </div>
+        {% endfor %}
+
+    </div>
+</div>
+{% endblock %}
