@@ -111,3 +111,33 @@ STORY_SCORING = {
     'batas_tinggi': 70,
     'batas_sedang': 35,
 }
+
+# ---------------------------------------------------------------------------
+# Scraping Play Store (§8, FR-EKS-03/04/05/10/11). Semua nilai berlabel
+# TBD/USULAN sengaja dijadikan konfigurasi, bukan hardcode.
+# ---------------------------------------------------------------------------
+SCRAPING = {
+    'lang': 'id',
+    'country': 'id',
+    'jumlah_default': 200,        # ulasan per aplikasi per penarikan  # TBD-12 / USULAN
+    'batch_size': 200,            # ulasan per permintaan ke Play Store
+    'jeda_detik': 2.0,            # jeda antar-permintaan (§3.2.3)
+    'max_retry': 4,               # percobaan ulang per permintaan
+    'backoff_dasar_detik': 2.0,   # backoff bertahap: 2, 4, 8, 16 detik
+    'min_kata': 3,                # ulasan < min_kata dibuang  # TBD-01 / USULAN
+    'pola_generik': [             # ulasan yang isinya hanya ini dibuang  # TBD-01 / USULAN
+        'bagus', 'mantap', 'keren', 'ok', 'oke', 'good', 'nice', 'baik',
+        'jelek', 'sip', 'top', 'wow', 'terbaik', 'bagus banget',
+        'mantap jiwa', 'bagus sekali', 'sangat bagus', 'lumayan',
+    ],
+    'samarkan_username': True,    # TBD-10 / USULAN: username di-hash, bukan disimpan asli
+}
+
+# Aplikasi target (§1). package_name TIDAK ada di SRS (Project_Context §8):
+# kosongkan bila belum diverifikasi; command akan melewatinya dan memberi peringatan.
+SCRAPER_TARGET_APPS = [
+    # Verifikasi package_name di URL Play Store: play.google.com/store/apps/details?id=<package_name>
+    {'nama_aplikasi': 'SATU SEHAT', 'package_name': 'com.telkom.tracencare', 'kategori': 'Kesehatan'},  # VERIFIKASI
+    {'nama_aplikasi': 'IKD', 'package_name': 'gov.dukcapil.mobile_id', 'kategori': 'Kependudukan'},     # VERIFIKASI
+    {'nama_aplikasi': 'M-Pajak', 'package_name': '', 'kategori': 'Perpajakan'},                         # ISI DULU
+]
