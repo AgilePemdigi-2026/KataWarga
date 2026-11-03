@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block title %}Kelola Akses Role | KataWarga{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto space-y-6">
+
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-white">Kelola Akses Role Pengguna</h1>
+            <p class="text-sm text-gray-400 mt-1">
+                Atur dan tetapkan peran (Role Based Access Control - RBAC) untuk setiap pengguna sistem KataWarga (§4).
+            </p>
+        </div>
+    </div>
+
+    <!-- Panel Simulasi Peran Dev Mode -->
+    <div class="bg-gray-800/80 border border-blue-900/60 rounded-xl p-5 shadow">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+                <span class="text-xs font-semibold uppercase tracking-wider text-blue-400">Pengujian Alur Peran (Dev Mode)</span>
+                <h3 class="text-base font-medium text-white mt-0.5">Ganti Peran Aktif Anda Saat Ini</h3>
+                <p class="text-xs text-gray-400">Pilih peran untuk menguji izin tombol (misal: Product Owner untuk menyetujui story, Developer untuk eksekusi backlog).</p>
+            </div>
+
+            <form method="post" action="{% url 'accounts:switch_role' %}" class="flex items-center gap-2">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.path }}">
+                <select name="acting_role" class="bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+                    {% for r_code, r_label in roles %}
+                    <option value="{{ r_code }}" {% if acting_role == r_code %}selected{% endif %}>
+                        {{ r_label }}
+                    </option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold transition">
+                    Aktifkan Peran
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tabel Pengguna & Role -->
+    <div class="bg-gray-800 border border-gray-700 rounded-xl overflow-hidden shadow">
+        <div class="p-5 border-b border-gray-700 flex items-center justify-between">
+            <h2 class="text-base font-semibold text-white">Daftar Pengguna Terdaftar</h2>
+            <span class="text-xs text-gray-400">{{ users|length }} akun terdaftar</span>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-gray-900/60 text-xs text-gray-400 border-b border-gray-700">
+                        <th class="py-3 px-5 font-medium">Username</th>
+                        <th class="py-3 px-5 font-medium">Email</th>
+                        <th class="py-3 px-5 font-medium">Peran Saat Ini</th>
+                        <th class="py-3 px-5 font-medium">Ubah Peran</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-700/60 text-sm">
+                    {% for u in users %}
+                    <tr class="hover:bg-gray-700/30 transition">
+                        <td class="py-3.5 px-5 font-medium text-white flex items-center space-x-2">
+                            <span>👤</span>
+                            <span>{{ u.username }}</span>
+                            {% if u.is_superuser %}
+                            <span class="px-1.5 py-0.5 bg-red-900/60 text-red-300 border border-red-700 text-[10px] rounded">Superuser</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3.5 px-5 text-gray-300 text-xs">
+                            {{ u.email|default:"-" }}
+                        </td>
+                        <td class="py-3.5 px-5">
+                            <span class="px-2.5 py-1 rounded-full text-xs font-semibold
+                                {% if u.role == 'REQUIREMENTS_ENGINEER' %}bg-blue-900/50 text-blue-300 border border-blue-700
+                                {% elif u.role == 'ANALYST' %}bg-yellow-900/50 text-yellow-300 border border-yellow-700
+                                {% elif u.role == 'PRODUCT_OWNER' %}bg-green-900/50 text-green-300 border border-green-700
+                                {% elif u.role == 'TIM_DEVELOPER' %}bg-purple-900/50 text-purple-300 border border-purple-700
+                                {% else %}bg-gray-700 text-gray-300{% endif %}">
+                                {{ u.get_role_display }}
+                            </span>
+                        </td>
+                        <td class="py-3.5 px-5">
+                            <form method="post" action="{% url 'accounts:ubah_role' u.pk %}" class="flex items-center gap-2">
+                                {% csrf_token %}
+                                <select name="role" class="bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500">
+                                    {% for r_code, r_label in roles %}
+                                    <option value="{{ r_code }}" {% if u.role == r_code %}selected{% endif %}>
+                                        {{ r_label }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <button type="submit" class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-xs font-medium transition">
+                                    Simpan
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="py-8 px-5 text-center text-gray-400 text-sm">
+                            Belum ada pengguna. Jalankan <code>python manage.py seed_dummy</code> untuk mengisi pengguna contoh.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Informasi Matriks Hak Akses Peran (§4 Project Context) -->
+    <div class="bg-gray-800 border border-gray-700 rounded-xl p-5 shadow space-y-3">
+        <h3 class="text-sm font-semibold text-white">Matriks Hak Akses Peran (§4 Project Context)</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+            <div class="bg-gray-900/50 p-3 rounded-lg border border-gray-700/50">
+                <strong class="text-blue-300 block mb-1">Requirements Engineer</strong>
+                <p class="text-gray-400">Jalankan pipeline ekstraksi ulasan (UC-1), susun & prioritaskan user story (UC-3).</p>
+            </div>
+            <div class="bg-gray-900/50 p-3 rounded-lg border border-gray-700/50">
+                <strong class="text-yellow-300 block mb-1">Analyst</strong>
+                <p class="text-gray-400">Validasi hasil ekstraksi & cluster: Setujui atau Tolak sebagai quality gate (UC-2).</p>
+            </div>
+            <div class="bg-gray-900/50 p-3 rounded-lg border border-gray-700/50">
+                <strong class="text-green-300 block mb-1">Product Owner</strong>
+                <p class="text-gray-400">Satu-satunya peran yang berhak Menyetujui atau Mengabaikan User Story ke Backlog (UC-4).</p>
+            </div>
+            <div class="bg-gray-900/50 p-3 rounded-lg border border-gray-700/50">
+                <strong class="text-purple-300 block mb-1">Tim Developer</strong>
+                <p class="text-gray-400">Mulai kerjakan dan tandai selesai pada item Sprint Backlog (UC-6).</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
