@@ -1,0 +1,64 @@
+"""
+Mengekstraksi who-what-why dari ulasan yang lolos filter dan belum diekstraksi (UC-1).
+
+Contoh:
+    python manage.py extract_reviews --dry-run --limit 20
+    python manage.py extract_reviews
+    python manage.py extract_reviews --app com.contoh.app --extractor aturan
+"""
+import logging
+from pathlib import Path
+
+from django.conf import settings
+from django.core.management.base import BaseCommand, CommandError
+
+from extraction.services import registry, runner
+
+logger = logging.getLogger('extraction.pipeline')
+
+
+def _siapkan_log_file():
+    """Catat kegagalan ke logs/extraction.log (waktu, ulasan, penyebab)."""
+    if any(isinstance(h, logging.FileHandler) for h in logger.handlers):
+        return
+    log_dir = Path(settings.BASE_DIR) / 'logs'
+    log_dir.mkdir(exist_ok=True)
+    handler = logging.FileHandler(log_dir / 'extraction.log', encoding='utf-8')
+    handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(message)s'))
+    logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
+
+
+class Command(BaseCommand):
+    help = 'Ekstraksi who-what-why untuk ulasan LOLOS yang belum punya hasil ekstraksi.'
+
+    def add_arguments(self, parser):
+        parser.add_argument('--limit', type=int, default=None, help='Batasi jumlah ulasan yang diproses.')
+        parser.add_argument('--app', action='append', default=[], metavar='PACKAGE',
+                            help='Batasi pada package_name tertentu (boleh diulang).')
+        parser.add_argument('--extractor', default=None,
+                            help="Nama ekstraktor (default: settings.EXTRACTION['ekstraktor']).")
+        parser.add_argument('--batch-size', type=int, default=None, help='Ulasan per transaksi.')
+        parser.add_argument('--dry-run', action='store_true', help='Hitung saja, tanpa menyimpan.')
+
+    def handle(self, *args, **opts):
+        _siapkan_log_file()
+        try:
+            ekstraktor = registry.get_ekstraktor(opts['extractor'])
+        except ValueError as exc:
+            raise CommandError(str(exc))
+
+        r = runner.ekstrak_ulasan_baru(
+            ekstraktor,
+            batas=opts['limit'],
+            aplikasi_pkg=opts['app'] or None,
+            batch_size=opts['batch_size'] or settings.EXTRACTION['batch_size'],
+            dry_run=opts['dry_run'],
+        )
+        logger.info('ekstraktor=%s diproses=%s hasil=%s tanpa_hasil=%s gagal=%s dry_run=%s',
+                    ekstraktor.nama, r.diproses, r.hasil, r.tanpa_hasil, r.gagal, opts['dry_run'])
+        self.stdout.write(self.style.SUCCESS(
+            f'[{ekstraktor.nama}] diproses={r.diproses} hasil={r.hasil} '
+            f'tanpa_hasil={r.tanpa_hasil} gagal={r.gagal}' + (' (dry-run)' if opts['dry_run'] else '')))
+        if r.gagal:
+            raise CommandError(f'{r.gagal} ulasan gagal diekstraksi. Lihat logs/extraction.log.')

@@ -1,0 +1,10 @@
+# Dependensi ringan untuk CI/pengujian. Sengaja TANPA torch/transformers (besar, lambat dipasang).
+# Tambahkan di sini bila ada test yang benar-benar memanggil library tersebut.
+Django>=4.2,<5.0
+psycopg2-binary>=2.9.9
+python-dotenv>=1.0.1
+requests>=2.31.0
+google-play-scraper>=1.2.4
+
+pytest>=7.4.0
+pytest-django>=4.7.0

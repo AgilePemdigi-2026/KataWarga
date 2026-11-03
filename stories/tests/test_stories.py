@@ -167,13 +167,10 @@ class ApprovalAndBoardTestCase(TestCase):
         """Uji atomik FR-SIM-04: jika saver gagal, status tetap MENUNGGU_PERSETUJUAN."""
         self.client.force_login(self.po_user)
 
-        with patch('importlib.import_module') as mock_import:
-            # Simulasikan importlib menemukan modul backlog.services.saver yang melempar exception
-            mock_module = type('MockModule', (), {
-                'save_to_backlog': lambda s: (_ for _ in ()).throw(RuntimeError("Koneksi DB Backlog Terputus"))
-            })
-            mock_import.return_value = mock_module
-
+        # approval.py memanggil save_to_backlog secara langsung (sejak #9 di-merge),
+        # jadi yang di-patch adalah nama yang dipakai di modul approval.
+        with patch('stories.services.approval.save_to_backlog',
+                   side_effect=RuntimeError("Koneksi DB Backlog Terputus")):
             response = self.client.post(f"/user-story/{self.story_150.id}/setujui")
             self.story_150.refresh_from_db()
 
