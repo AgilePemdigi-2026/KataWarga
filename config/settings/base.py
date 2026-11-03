@@ -141,3 +141,14 @@ SCRAPER_TARGET_APPS = [
     {'nama_aplikasi': 'IKD', 'package_name': 'gov.dukcapil.mobile_id', 'kategori': 'Kependudukan'},     # VERIFIKASI
     {'nama_aplikasi': 'M-Pajak', 'package_name': '', 'kategori': 'Perpajakan'},                         # ISI DULU
 ]
+
+# ---------------------------------------------------------------------------
+# Ekstraksi who-what-why (FR-EKS-06, §8). Ekstraktor dapat diganti tanpa
+# mengubah pipeline: isi 'ekstraktor' dengan nama terdaftar atau dotted path
+# ke kelas turunan extraction.services.base.Ekstraktor (mis. IndoBERT nanti).
+# ---------------------------------------------------------------------------
+EXTRACTION = {
+    'ekstraktor': 'aturan',     # ekstraktor awal berbasis aturan (baseline)  # USULAN
+    'max_hasil_per_ulasan': 3,  # satu ulasan boleh menghasilkan >1 hasil (FR-EKS-06)
+    'batch_size': 100,          # ulasan per transaksi
+}
