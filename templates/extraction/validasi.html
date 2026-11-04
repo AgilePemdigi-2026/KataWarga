@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block title %}Validasi Hasil Ekstraksi | KataWarga{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto space-y-6">
+
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-white">Validasi Hasil Ekstraksi (Analyst Quality Gate)</h1>
+            <p class="text-sm text-gray-400 mt-1">
+                Tinjau elemen <em>Who-What-Why</em> dari cluster ulasan dan tentukan apakah valid untuk dilanjutkan ke penyusunan User Story (UC-2, FR-VAL).
+            </p>
+        </div>
+        <div class="flex items-center space-x-2 text-xs">
+            <span class="text-gray-400">Menunggu Validasi:</span>
+            <span class="font-bold text-yellow-400 bg-gray-800 px-3 py-1 rounded-full border border-gray-700">{{ clusters|length }}</span>
+        </div>
+    </div>
+
+    <!-- Daftar Cluster Menunggu Validasi -->
+    <div class="space-y-6">
+        {% for cluster in clusters %}
+        <div class="bg-gray-800 border border-gray-700 rounded-xl p-6 shadow space-y-5">
+            <!-- Header Cluster -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-gray-700">
+                <div>
+                    <span class="text-xs uppercase tracking-wider text-gray-400">Cluster #{{ cluster.id }}</span>
+                    <h2 class="text-lg font-bold text-white mt-0.5">{{ cluster.nama_topik }}</h2>
+                </div>
+
+                <div class="flex items-center space-x-3 text-xs">
+                    <span class="px-3 py-1 rounded-full bg-yellow-900/50 text-yellow-300 border border-yellow-700 font-semibold">
+                        Menunggu Validasi Analyst
+                    </span>
+                    <span class="px-3 py-1 rounded-full bg-gray-900 text-gray-300 border border-gray-700 font-mono">
+                        {{ cluster.jumlah_anggota }} ulasan
+                    </span>
+                </div>
+            </div>
+
+            <!-- Anggota Ulasan & Ekstraksi Who/What/Why -->
+            <div class="space-y-3">
+                <h3 class="text-xs font-semibold uppercase tracking-wider text-gray-400">Sampel Anggota Cluster & Elemen Ekstraksi (FR-VAL-02):</h3>
+                <div class="space-y-3">
+                    {% for anggota in cluster.anggota_set.all|slice:":5" %}
+                    <div class="bg-gray-900/60 p-4 rounded-lg border border-gray-700/60 text-xs space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="font-medium text-blue-400">
+                                📱 {{ anggota.hasil_ekstraksi.ulasan.aplikasi.nama_aplikasi }}
+                            </span>
+                            <span class="text-gray-400">
+                                {{ anggota.hasil_ekstraksi.ulasan.skor_bintang }}★ · {{ anggota.hasil_ekstraksi.ulasan.tanggal_ulasan }}
+                            </span>
+                        </div>
+
+                        <!-- Who / What / Why Highlights -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-2 py-1">
+                            <div class="bg-blue-950/40 p-2 rounded border border-blue-900/50">
+                                <span class="text-[10px] text-blue-400 font-bold uppercase block">WHO:</span>
+                                <span class="text-gray-200">{{ anggota.hasil_ekstraksi.teks_who|default:"(implisit / pengguna)" }}</span>
+                            </div>
+                            <div class="bg-red-950/40 p-2 rounded border border-red-900/50">
+                                <span class="text-[10px] text-red-400 font-bold uppercase block">WHAT:</span>
+                                <span class="text-gray-200 font-medium">{{ anggota.hasil_ekstraksi.teks_what }}</span>
+                            </div>
+                            <div class="bg-green-950/40 p-2 rounded border border-green-900/50">
+                                <span class="text-[10px] text-green-400 font-bold uppercase block">WHY:</span>
+                                <span class="text-gray-200">{{ anggota.hasil_ekstraksi.teks_why|default:"(tidak disebutkan)" }}</span>
+                            </div>
+                        </div>
+
+                        <p class="text-gray-400 italic">"{{ anggota.hasil_ekstraksi.ulasan.isi_ulasan }}"</p>
+                    </div>
+                    {% endfor %}
+
+                    {% if cluster.jumlah_anggota > 5 %}
+                    <p class="text-[11px] text-gray-500 text-center">... dan {{ cluster.jumlah_anggota|add:"-5" }} ulasan lainnya dalam cluster ini.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Tombol Aksi Validasi Analyst (FR-VAL-03, FR-VAL-04) -->
+            <div class="pt-4 border-t border-gray-700 flex flex-col sm:flex-row items-center justify-end gap-3">
+                <form method="post" action="{% url 'extraction:tolak_cluster' cluster.pk %}">
+                    {% csrf_token %}
+                    <button type="submit"
+                            onclick="return confirm('Apakah Anda yakin ingin menolak cluster ini?');"
+                            class="px-5 py-2.5 bg-red-600/80 hover:bg-red-700 active:bg-red-800 text-white font-medium rounded-lg text-xs transition shadow flex items-center space-x-1.5">
+                        <span>✕</span>
+                        <span>Tolak (Dihapus)</span>
+                    </button>
+                </form>
+
+                <form method="post" action="{% url 'extraction:setujui_cluster' cluster.pk %}">
+                    {% csrf_token %}
+                    <button type="submit"
+                            class="px-6 py-2.5 bg-green-600 hover:bg-green-500 active:bg-green-700 text-white font-medium rounded-lg text-xs transition shadow flex items-center space-x-1.5">
+                        <span>✓</span>
+                        <span>Setujui Cluster (Tervalidasi)</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% empty %}
+        <div class="bg-gray-800 border border-gray-700 rounded-xl p-10 text-center space-y-3">
+            <h2 class="text-lg font-semibold text-white">Tidak ada cluster yang menunggu validasi</h2>
+            <p class="text-sm text-gray-400">
+                Semua cluster hasil ekstraksi sudah divalidasi, atau jalankan perintah ekstraksi & clustering terlebih dahulu.
+            </p>
+            <div class="pt-3 flex justify-center gap-3">
+                <a href="/susun-user-story" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-xs font-semibold text-white">
+                    Buka Halaman Susun User Story &rarr;
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+</div>
+{% endblock %}
+

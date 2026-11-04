@@ -39,9 +39,16 @@
             <a href="/backlog" class="flex items-center px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition">
                 <span class="mr-3">🚀</span> Sprint Backlog
             </a>
+            <a href="/validasi-ekstraksi" class="flex items-center px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition">
+                <span class="mr-3">🔍</span> Validasi Ekstraksi
+            </a>
+            <a href="/kelola-role" class="flex items-center px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition">
+                <span class="mr-3">👥</span> Kelola Akses Role
+            </a>
         </nav>
         <div class="pt-4 border-t border-gray-700 text-xs text-gray-400">
-            <p>Peran Aktif: <span class="font-semibold text-blue-400">{{ user.role|default:"DEV_MODE" }}</span></p>
+            <p>Peran Aktif: <span class="font-semibold text-blue-400">{{ request.session.acting_role|default:user.role|default:"REQUIREMENTS_ENGINEER" }}</span></p>
+            <a href="/kelola-role" class="text-[11px] text-gray-500 hover:text-gray-300 underline mt-1 block">Ganti peran simulasi</a>
         </div>
     </aside>
 
@@ -50,10 +57,10 @@
         <!-- Header -->
         <header class="bg-gray-800 border-b border-gray-700 px-6 py-3 flex items-center justify-between">
             <div class="text-sm text-gray-400">
-                Sprint 1 — Elisitasi Kebutuhan Perangkat Lunak
+                Sprint 2 — Role, Ekstraksi, Clustering & Backlog Execution
             </div>
             <div class="flex items-center space-x-3 text-sm">
-                <span class="px-2 py-1 rounded bg-gray-700 text-xs text-gray-300">Sprint 1</span>
+                <span class="px-2 py-1 rounded bg-gray-700 text-xs text-gray-300">Sprint 2</span>
             </div>
         </header>
 

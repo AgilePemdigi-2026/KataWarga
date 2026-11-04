@@ -5,9 +5,11 @@ from django.http import HttpResponseForbidden
 
 
 def _get_acting_role(request):
-    """Kembalikan peran aktif: dari user.role jika login, kalau tidak DEV_ACTING_ROLE."""
+    """Kembalikan peran aktif: dari user.role jika login, session dev, atau DEV_ACTING_ROLE."""
     if request.user and request.user.is_authenticated:
         return request.user.role
+    if hasattr(request, 'session') and request.session.get('acting_role'):
+        return request.session['acting_role']
     return getattr(settings, 'DEV_ACTING_ROLE', None)
 
 

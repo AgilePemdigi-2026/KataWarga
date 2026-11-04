@@ -139,7 +139,7 @@ SCRAPER_TARGET_APPS = [
     # Verifikasi package_name di URL Play Store: play.google.com/store/apps/details?id=<package_name>
     {'nama_aplikasi': 'SATU SEHAT', 'package_name': 'com.telkom.tracencare', 'kategori': 'Kesehatan'},  # VERIFIKASI
     {'nama_aplikasi': 'IKD', 'package_name': 'gov.dukcapil.mobile_id', 'kategori': 'Kependudukan'},     # VERIFIKASI
-    {'nama_aplikasi': 'M-Pajak', 'package_name': '', 'kategori': 'Perpajakan'},                         # ISI DULU
+    {'nama_aplikasi': 'M-Pajak', 'package_name': 'com.djp.mpajak', 'kategori': 'Perpajakan'},
 ]
 
 # ---------------------------------------------------------------------------
@@ -151,4 +151,10 @@ EXTRACTION = {
     'ekstraktor': 'aturan',     # ekstraktor awal berbasis aturan (baseline)  # USULAN
     'max_hasil_per_ulasan': 3,  # satu ulasan boleh menghasilkan >1 hasil (FR-EKS-06)
     'batch_size': 100,          # ulasan per transaksi
+}
+
+
+CLUSTERING = {
+    'distance_threshold': 0.55,  # ambang batas jarak cosine (FR-EKS-08)
+    'min_samples': 1,
 }
