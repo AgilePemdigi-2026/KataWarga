@@ -18,8 +18,13 @@ class BacklogExecutionError(Exception):
     pass
 
 
-def validasi_developer(pengguna):
-    """Pastikan pengguna login dan memiliki role Tim Developer."""
+def validasi_developer(pengguna, role=None):
+    """
+    Pastikan pengguna login dan memiliki role efektif Tim Developer.
+
+    ``role`` memungkinkan view meneruskan role simulasi development tanpa
+    mengubah role asli pengguna di database.
+    """
     if pengguna is None or not getattr(
         pengguna, "is_authenticated", False
     ):
@@ -27,19 +32,20 @@ def validasi_developer(pengguna):
             "Pengguna harus login terlebih dahulu."
         )
 
-    if pengguna.role != User.RolePengguna.TIM_DEVELOPER:
+    peran_efektif = role or pengguna.role
+    if peran_efektif != User.RolePengguna.TIM_DEVELOPER:
         raise BacklogExecutionError(
             "Hanya Tim Developer yang boleh mengeksekusi backlog."
         )
 
 
 @transaction.atomic
-def mulai_kerjakan(backlog_item, pengguna):
+def mulai_kerjakan(backlog_item, pengguna, *, role=None):
     """
     Mengubah status:
     SIAP_DIEKSEKUSI -> SEDANG_DIKERJAKAN
     """
-    validasi_developer(pengguna)
+    validasi_developer(pengguna, role=role)
 
     item = BacklogItem.objects.select_for_update().get(
         pk=backlog_item.pk
@@ -71,12 +77,12 @@ def mulai_kerjakan(backlog_item, pengguna):
 
 
 @transaction.atomic
-def tandai_selesai(backlog_item, pengguna):
+def tandai_selesai(backlog_item, pengguna, *, role=None):
     """
     Mengubah status:
     SEDANG_DIKERJAKAN -> SELESAI
     """
-    validasi_developer(pengguna)
+    validasi_developer(pengguna, role=role)
 
     item = BacklogItem.objects.select_for_update().get(
         pk=backlog_item.pk

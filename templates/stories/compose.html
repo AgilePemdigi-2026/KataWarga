@@ -11,7 +11,7 @@
         </div>
 
         <!-- Tombol Susun User Story (FR-USR-01) -->
-        <form method="post" action="/susun-user-story" hx-post="/susun-user-story" hx-target="#daftar-user-story">
+        <form method="post" action="{% url 'stories:susun' %}" hx-post="{% url 'stories:susun' %}" hx-target="#daftar-user-story">
             {% csrf_token %}
             <button type="submit"
                     class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-medium rounded-lg text-sm transition shadow-lg flex items-center space-x-2">
