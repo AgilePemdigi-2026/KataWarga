@@ -35,3 +35,4 @@ Feature: User Authentication Feature
     Given saya adalah pengguna yang sudah login
     When saya mengakses logout dengan request GET
     Then saya menerima respons 403 Forbidden
+

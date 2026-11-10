@@ -102,3 +102,4 @@ def then_redirect_login(dctx):
         f"Pengguna belum login seharusnya diredirect (302), dapat {dctx.response.status_code}"
     )
     assert '/login/' in dctx.response.url
+

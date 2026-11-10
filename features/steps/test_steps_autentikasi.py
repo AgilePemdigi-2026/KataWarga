@@ -233,3 +233,4 @@ def then_403_logout(actx):
     assert actx.response.status_code == 403, (
         f"Logout via GET harus 403 Forbidden, dapat {actx.response.status_code}"
     )
+

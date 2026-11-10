@@ -724,7 +724,7 @@ Feature: Backlog Execution Feature
 
 
 ## 18. Glosarium singkat
-
+gi
 | Istilah | Arti |
 |---|---|
 | Who-What-Why | who = pemangku kepentingan; what = kebutuhan/masalah; why = alasan/dampak |
