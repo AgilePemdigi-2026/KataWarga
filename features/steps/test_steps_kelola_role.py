@@ -78,14 +78,19 @@ def given_target_pengguna(rctx, db, peran):
 
 
 @given('saya adalah pengguna dalam mode dev', target_fixture='rctx')
-def given_dev_mode(db):
+def given_dev_mode(db, settings):
     from accounts.models import User
+    settings.DEBUG = True
     rctx = RoleKonteks()
     user, _ = User.objects.get_or_create(
         username='bdd_dev_mode_user',
-        defaults={'role': User.RolePengguna.REQUIREMENTS_ENGINEER,
-                  'email': 'devmode@katawarga.test'}
+        defaults={
+            'role': User.RolePengguna.REQUIREMENTS_ENGINEER,
+            'email': 'devmode@katawarga.test',
+            'is_staff': True,
+        }
     )
+    user.is_staff = True
     user.set_password('testpass123')
     user.save()
     rctx.aktor = user
