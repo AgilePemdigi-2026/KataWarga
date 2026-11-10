@@ -80,13 +80,46 @@ def test_ubah_role_invalid(client, users_setup):
     assert dev_user.role == User.RolePengguna.TIM_DEVELOPER  # Tidak berubah
 
 
-@pytest.mark.django_db
-def test_switch_acting_role(client, users_setup):
-    url = reverse('accounts:switch_role')
-    resp = client.post(url, {'acting_role': User.RolePengguna.PRODUCT_OWNER})
 
-    assert resp.status_code == 302
-    assert client.session.get('acting_role') == User.RolePengguna.PRODUCT_OWNER
+@pytest.mark.django_db
+def test_switch_acting_role(client, users_setup, settings):
+    settings.DEBUG = True
+    user = users_setup["re"]
+    user.is_staff = True
+    user.save(update_fields=["is_staff"])
+    client.force_login(user)
+    url = reverse("accounts:switch_role")
+    response = client.post(
+        url,
+        {
+            "acting_role": User.RolePengguna.PRODUCT_OWNER,
+        },
+    )
+    assert response.status_code == 302
+    assert (
+        client.session.get("acting_role")
+        == User.RolePengguna.PRODUCT_OWNER
+    )
+    response = client.post(
+        url,
+        {
+            "acting_role": User.RolePengguna.TIM_DEVELOPER,
+        },
+    )
+    assert response.status_code == 302
+
+    assert (
+        client.session.get("acting_role")
+        == User.RolePengguna.TIM_DEVELOPER
+    )
+    response = client.post(
+        url,
+        {
+            "acting_role": "",
+        },
+    )
+    assert response.status_code == 302
+    assert client.session.get("acting_role") is None
 
 
 @pytest.mark.django_db

@@ -1,0 +1,185 @@
+
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login | KataWarga</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+            background: #0F172B;
+        }
+
+        .auth-background {
+            background-image:
+                linear-gradient(
+                    90deg,
+                    rgba(15, 23, 43, 0.08) 0%,
+                    rgba(15, 23, 43, 0.55) 65%,
+                    #0F172B 100%
+                ),
+                url("{% static 'images/bg.png' %}");
+            background-size: cover;
+            background-position: center;
+        }
+
+        .auth-layout {
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+        }
+
+        @media (max-width: 767px), (max-height: 600px) {
+            .auth-layout {
+                min-height: 100vh;
+                height: auto;
+                overflow: visible;
+            }
+        }
+    </style>
+</head>
+
+<body class="text-white">
+
+<main class="auth-layout relative flex items-center justify-center lg:justify-end px-5 sm:px-10 lg:px-[9%] py-5">
+
+    <!-- Background -->
+    <div class="absolute inset-y-0 left-0 w-full lg:w-[68%] auth-background"></div>
+
+    <div class="absolute inset-0 bg-gradient-to-r from-transparent via-[#0F172B]/20 to-[#0F172B] pointer-events-none"></div>
+
+    <!-- Login Container -->
+    <section class="relative z-10 w-full max-w-[468px] flex flex-col items-center justify-center">
+
+        <!-- Logo -->
+        <img
+            src="{% static 'images/logo-katawarga.png' %}"
+            alt="KataWarga"
+            class="w-[260px] max-w-[75%] h-auto object-contain mb-5"
+        >
+
+        <!-- Login Card -->
+        <div class="w-full bg-[#1D293D] border border-[#314158] rounded-2xl px-7 sm:px-8 py-7 shadow-2xl">
+
+            <h1 class="text-center text-[25px] font-bold tracking-tight">
+                Welcome Back
+            </h1>
+
+            <p class="text-center text-[#90A1B9] text-sm mt-2">
+                Sign in to your account to continue.
+            </p>
+
+            <!-- Error Message -->
+            {% if form.non_field_errors %}
+            <div class="mt-5 bg-red-500/10 border border-red-500/30 text-red-300 text-xs rounded-lg p-3">
+                {% for error in form.non_field_errors %}
+                    <p>{{ error }}</p>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Login Form -->
+            <form method="POST" class="mt-7 space-y-4">
+                {% csrf_token %}
+
+                <!-- Username -->
+                <div>
+                    <label for="username" class="block text-xs text-[#CAD5E2] mb-2">
+                        Username
+                    </label>
+
+                    <input
+                        id="username"
+                        type="text"
+                        name="username"
+                        required
+                        autofocus
+                        autocomplete="username"
+                        value="{{ form.username.value|default_if_none:'' }}"
+                        placeholder="Enter your username"
+                        class="w-full h-[44px] bg-[#0F172B]/70 border border-[#314158] rounded-lg px-4 text-sm text-white placeholder-[#62748E] outline-none focus:border-[#7546EE] transition"
+                    >
+                </div>
+
+                <!-- Password -->
+                <div>
+                    <label for="password" class="block text-xs text-[#CAD5E2] mb-2">
+                        Password
+                    </label>
+
+                    <div class="relative">
+                        <input
+                            id="password"
+                            type="password"
+                            name="password"
+                            required
+                            autocomplete="current-password"
+                            placeholder="Enter your password"
+                            class="w-full h-[44px] bg-[#0F172B]/70 border border-[#314158] rounded-lg pl-4 pr-14 text-sm text-white placeholder-[#62748E] outline-none focus:border-[#7546EE] transition"
+                        >
+
+                        <button
+                            type="button"
+                            data-toggle-password="password"
+                            class="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-[#90A1B9] hover:text-white"
+                            aria-label="Show password"
+                        >
+                            Show
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Submit -->
+                <button
+                    type="submit"
+                    class="w-full h-[44px] bg-[#7546EE] hover:bg-[#6635D8] rounded-lg text-sm font-semibold shadow-lg shadow-violet-600/20 transition mt-2"
+                >
+                    Sign In
+                </button>
+            </form>
+
+            <!-- Sign Up Link -->
+            <p class="text-center text-sm text-[#90A1B9] mt-6">
+                Don't have an account?
+                <a
+                    href="{% url 'accounts:signup' %}"
+                    class="text-violet-400 hover:text-violet-300 font-semibold"
+                >
+                    Sign Up
+                </a>
+            </p>
+
+        </div>
+    </section>
+</main>
+
+<script>
+    document.querySelectorAll('[data-toggle-password]').forEach(button => {
+        button.addEventListener('click', () => {
+            const input = document.getElementById(
+                button.dataset.togglePassword
+            );
+
+            const isHidden = input.type === 'password';
+
+            input.type = isHidden ? 'text' : 'password';
+            button.textContent = isHidden ? 'Hide' : 'Show';
+            button.setAttribute(
+                'aria-label',
+                isHidden ? 'Hide password' : 'Show password'
+            );
+        });
+    });
+</script>
+
+</body>
+</html>
