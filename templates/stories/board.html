@@ -12,7 +12,7 @@
         </div>
 
         <!-- Filter Form (FR-APP-01) -->
-        <form method="get" action="/user-story" class="flex flex-wrap items-center gap-3">
+        <form method="get" action="{% url 'stories:board' %}" class="flex flex-wrap items-center gap-3">
             <div>
                 <label for="filter-aplikasi" class="sr-only">Aplikasi</label>
                 <select id="filter-aplikasi" name="aplikasi" onchange="this.form.submit()"
@@ -38,7 +38,7 @@
             </div>
 
             {% if selected_aplikasi or selected_prioritas %}
-            <a href="/user-story" class="text-xs text-gray-400 hover:text-white underline">Reset</a>
+            <a href="{% url 'stories:board' %}" class="text-xs text-gray-400 hover:text-white underline">Reset</a>
             {% endif %}
         </form>
     </div>
@@ -84,7 +84,7 @@
 
                     <div class="pt-2 border-t border-gray-700/50 flex justify-between items-center text-xs">
                         <span class="text-gray-400">{{ story.cluster.skor_signifikansi }} ulasan</span>
-                        <a href="/user-story/{{ story.id }}" class="text-blue-400 hover:underline font-medium">Review &rarr;</a>
+                        <a href="{% url 'stories:detail' story.id %}" class="text-blue-400 hover:underline font-medium">Review &rarr;</a>
                     </div>
                 </div>
                 {% empty %}
@@ -131,7 +131,7 @@
 
                     <div class="pt-2 border-t border-gray-700/50 flex justify-between items-center text-xs">
                         <span class="text-green-400">✓ Disetujui</span>
-                        <a href="/user-story/{{ story.id }}" class="text-gray-400 hover:text-white font-medium">Detail</a>
+                        <a href="{% url 'stories:detail' story.id %}" class="text-gray-400 hover:text-white font-medium">Detail</a>
                     </div>
                 </div>
                 {% empty %}
@@ -173,7 +173,7 @@
                     {% endif %}
 
                     <div class="pt-2 border-t border-gray-700/40 flex justify-end text-xs">
-                        <a href="/user-story/{{ story.id }}" class="text-gray-400 hover:text-white">Detail</a>
+                        <a href="{% url 'stories:detail' story.id %}" class="text-gray-400 hover:text-white">Detail</a>
                     </div>
                 </div>
                 {% empty %}

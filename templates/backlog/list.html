@@ -96,30 +96,41 @@
 
                 <!-- Tombol Aksi Eksekusi Tim Developer (FR-BKL-03, FR-BKL-04) -->
                 <div class="pt-2">
-                    {% if item.status_eksekusi == 'SIAP_DIEKSEKUSI' %}
-                    <form method="post" action="{% url 'backlog:mulai' item.pk %}">
-                        {% csrf_token %}
-                        <button type="submit"
-                                class="w-full py-2 px-3 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-semibold rounded-lg text-xs transition shadow flex items-center justify-center space-x-1.5">
-                            <span>▶</span>
-                            <span>Mulai Kerjakan</span>
-                        </button>
-                    </form>
-                    {% elif item.status_eksekusi == 'SEDANG_DIKERJAKAN' %}
-                    <form method="post" action="{% url 'backlog:selesai' item.pk %}">
-                        {% csrf_token %}
-                        <button type="submit"
-                                class="w-full py-2 px-3 bg-green-600 hover:bg-green-500 active:bg-green-700 text-white font-semibold rounded-lg text-xs transition shadow flex items-center justify-center space-x-1.5">
-                            <span>✓</span>
-                            <span>Tandai Selesai</span>
-                        </button>
-                    </form>
+                    {% if can_execute %}
+                        {% if item.status_eksekusi == 'SIAP_DIEKSEKUSI' %}
+                        <form method="post" action="{% url 'backlog:mulai' item.pk %}">
+                            {% csrf_token %}
+                            <button type="submit"
+                                    class="w-full py-2 px-3 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-semibold rounded-lg text-xs transition shadow flex items-center justify-center space-x-1.5">
+                                <span>▶</span>
+                                <span>Mulai Kerjakan</span>
+                            </button>
+                        </form>
+                        {% elif item.status_eksekusi == 'SEDANG_DIKERJAKAN' %}
+                        <form method="post" action="{% url 'backlog:selesai' item.pk %}">
+                            {% csrf_token %}
+                            <button type="submit"
+                                    class="w-full py-2 px-3 bg-green-600 hover:bg-green-500 active:bg-green-700 text-white font-semibold rounded-lg text-xs transition shadow flex items-center justify-center space-x-1.5">
+                                <span>✓</span>
+                                <span>Tandai Selesai</span>
+                            </button>
+                        </form>
+                        {% else %}
+                        <div class="text-center py-1.5 px-3 bg-gray-900/60 rounded-lg text-xs text-green-400 font-medium border border-gray-700">
+                            ✓ Keluhan pengguna telah ditangani
+                        </div>
+                        {% endif %}
                     {% else %}
-                    <div class="text-center py-1.5 px-3 bg-gray-900/60 rounded-lg text-xs text-green-400 font-medium border border-gray-700">
-                        ✓ Keluhan pengguna telah ditangani
+                    <div class="text-center py-1.5 px-3 bg-gray-900/60 rounded-lg text-[11px] text-gray-400 border border-gray-700">
+                        Mode Product Owner: hanya melihat status eksekusi.
                     </div>
                     {% endif %}
                 </div>
+
+                <a href="{% url 'backlog:detail' item.pk %}"
+                   class="block text-center text-xs text-indigo-300 hover:text-indigo-200 border border-indigo-900/60 hover:border-indigo-700 rounded-lg py-1.5 transition">
+                    Lihat Detail Backlog &rarr;
+                </a>
 
                 <a href="{% url 'stories:detail' item.user_story.pk %}"
                    class="block text-center text-xs text-gray-400 hover:text-white border border-gray-700 hover:border-gray-600 rounded-lg py-1.5 transition">
@@ -135,10 +146,14 @@
             <p class="text-sm text-gray-400 mt-2">
                 User Story yang disetujui Product Owner akan muncul di sini dan siap dieksekusi.
             </p>
+            {% if is_po %}
             <a href="{% url 'stories:board' %}"
                class="inline-block mt-5 px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-semibold text-white">
                 Buka User Story Board
             </a>
+            {% else %}
+            <p class="text-xs text-gray-500 mt-4">Item akan muncul setelah Product Owner menyetujui User Story.</p>
+            {% endif %}
         </div>
         {% endfor %}
 
