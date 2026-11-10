@@ -548,7 +548,182 @@ katawarga/
 
 ---
 
-## 16. Glosarium singkat
+
+# #16. User Story Features
+User Story 1: Ekstraksi dan Pengelompokan Ulasan
+As a Requirements Engineer,
+I want to run the automatic review extraction and clustering process,
+So that I can obtain structured user complaints/needs without manually reading thousands of raw reviews.
+User Story 2: Penyusunan dan Prioritisasi User Story
+As a Requirements Engineer,
+I want the system to compose user stories from each review cluster along with a priority score,
+So that I can immediately obtain a ready-to-use, priority-ordered list of requirements.
+User Story 3: Validasi Hasil Ekstraksi
+As an Analyst,
+I want to validate the who-what-why extraction results before they are processed further,
+So that the resulting user stories are accurate and do not mislead the development team.
+User Story 4: Validasi dan Persetujuan User Story
+As a Product Owner,
+I want to review and approve the system-generated user stories based on their priority,
+So that only genuinely valuable requirements enter the development backlog.
+User Story 5: Penyimpanan User Story ke Backlog
+As a Product Owner,
+I want the approved user stories to be saved automatically to the development backlog,
+So that the Tim Developer can immediately pick up validated requirements without manual re-entry.
+User Story 6: Eksekusi Item Backlog
+ As a Tim Developer,
+ I want to pick up and mark the progress status of backlog items,
+ So that the team can track the resolution progress of user complaints.
+
+
+## 17, User Story Scenarios
+ Ekstraksi dan Pengelompokan Ulasan
+Feature: Review Extraction and Clustering Feature
+  As a Requirements Engineer,
+  I want to run the automatic review extraction and clustering process,
+  So that I can obtain structured user complaints without manually reading thousands of raw reviews.
+
+  Scenario: Successfully run extraction and get new review clusters (Happy Path)
+    Given I open the extraction page at "http://localhost:3000/ekstraksi"
+    When I press the "Jalankan Ekstraksi" button
+    Then I should see the message "Proses ekstraksi selesai"
+    And I should see a new "hasil-cluster" section on the page
+
+  Scenario: Short or generic reviews are automatically filtered out
+    Given I have a review "bagus" for the application "SATU SEHAT"
+    When I press the "Jalankan Ekstraksi" button
+    Then the review "bagus" should not appear in the "hasil-cluster" section
+
+  Scenario: Reviews with similar complaints are grouped into the same cluster
+    Given I have a review "aplikasi selalu force close saat login"
+    And I have a review "aplikasi keluar sendiri waktu masuk"
+    When I press the "Jalankan Ekstraksi" button
+    Then both reviews should appear in the same cluster
+
+
+Penyusunan dan Prioritas User Story
+Feature: User Story Composition and Prioritization Feature
+  As a Requirements Engineer,
+  I want the system to compose user stories from each review cluster along with a priority score,
+  So that I can immediately obtain a ready-to-use, priority-ordered list of requirements.
+
+  Scenario: Successfully compose a user story from a significant cluster (Happy Path)
+    Given I open the user story composition page at "http://localhost:3000/susun-user-story"
+    When I press the "Susun User Story" button
+    Then I should see a new user story starting with "Sebagai" in the "daftar-user-story" section
+
+  Scenario: Insignificant clusters are ignored
+    Given I have a cluster "Warna Tombol" with 2 reviews
+    When I press the "Susun User Story" button
+    Then the cluster "Warna Tombol" should not appear in the "daftar-user-story" section
+
+  Scenario Outline: Priority score is calculated based on cluster size
+    Given I have a cluster "<cluster_name>" with <review_count> reviews
+    When I press the "Susun User Story" button
+    Then the priority score field should show "<priority_result>"
+
+    Examples:
+      | cluster_name        | review_count | priority_result |
+      | Gagal Login         | 150                 | Tinggi           |
+      | Notifikasi Lambat| 40                   | Sedang        |
+      | Warna Tombol      | 5                     | Rendah         |
+
+
+Validasi Hasil Ekstraksi
+Feature: Extraction Result Validation Feature
+  As an Analyst,
+  I want to validate the who-what-why extraction results before they are processed further,
+  So that the resulting user stories are accurate and do not mislead the development team.
+
+  Scenario: Approve a valid extraction result (Happy Path)
+    Given I open the validation page at "http://localhost:3000/validasi-ekstraksi/1"
+    And the "who" field contains "wajib pajak"
+    And the "what" field contains "gagal login"
+    When I press the "Setujui" button
+    Then I should see the status "Tervalidasi"
+
+  Scenario: Reject an invalid extraction result
+    Given I open the validation page at "http://localhost:3000/validasi-ekstraksi/2"
+    And the "who" field is empty
+    When I press the "Tolak" button
+    Then I should see the status "Dihapus"
+    And the extraction result should not appear in the "menunggu-penyusunan" section
+
+
+Validasi dan Persetujuan User Story
+Feature: User Story Approval Feature
+  As a Product Owner,
+  I want to review and approve the system-generated user stories based on their priority,
+  So that only genuinely valuable requirements enter the development backlog.
+
+  Scenario: Approve a high-priority user story (Happy Path)
+    Given I open the user story page at "http://localhost:3000/user-story/45"
+    And the priority field shows "Tinggi"
+    When I press the "Setujui" button
+    Then I should see the status "Disetujui"
+    And I should be redirected to the backlog page
+
+  Scenario: Ignore a low-priority user story
+    Given I open the user story page at "http://localhost:3000/user-story/46"
+    And the priority field shows "Rendah"
+    When I press the "Abaikan" button
+    Then I should see the status "Diabaikan"
+    And the user story should not appear in the backlog list
+
+
+Penyimpanan User Story ke Backlog
+
+Feature: User Story Backlog Saving Feature
+  As a Product Owner,
+  I want the approved user stories to be saved automatically to the development backlog,
+  So that the Tim Developer can immediately pick up validated requirements without manual re-entry.
+
+  Scenario: Approved user story is saved to the backlog (Happy Path)
+    Given I open the user story page at "http://localhost:3000/user-story/45"
+    And the status field shows "Menunggu Persetujuan"
+    When I press the "Setujui" button
+    Then I should see the message "User story berhasil disimpan ke backlog"
+    And the backlog item status should be "Siap Dieksekusi"
+    And I should see the user story in the backlog list at "http://localhost:3000/backlog"
+
+  Scenario: User story that is already in the backlog is not duplicated
+    Given I open the user story page at "http://localhost:3000/user-story/45"
+    And I have already approved this user story
+    When I open the backlog page at "http://localhost:3000/backlog"
+    Then the user story should appear only once in the backlog list
+
+  Scenario: Saving to the backlog fails
+    Given I open the user story page at "http://localhost:3000/user-story/47"
+    And the backlog storage is unavailable
+    When I press the "Setujui" button
+    Then I should see the message "Gagal menyimpan ke backlog"
+    And the status field should still show "Menunggu Persetujuan"
+    And I should not see the user story in the backlog list
+
+
+
+Eksekusi Item Backlog  
+Feature: Backlog Execution Feature
+  As a Tim Developer,
+  I want to pick up and mark the progress status of backlog items,
+  So that the team can track the resolution progress of user complaints.
+
+  Scenario: Mark a backlog item as in progress (Happy Path)
+    Given I open the backlog page at "http://localhost:3000/backlog/45"
+    When I press the "Mulai Kerjakan" button
+    Then the status field should show "Sedang Dikerjakan"
+
+  Scenario: Mark a backlog item as done
+    Given I open the backlog page at "http://localhost:3000/backlog/45"
+    And the status field shows "Sedang Dikerjakan"
+    When I press the "Tandai Selesai" button
+    Then the status field should show "Selesai"
+    And I should see the message "Keluhan pengguna telah ditangani"
+
+
+
+
+## 18. Glosarium singkat
 
 | Istilah | Arti |
 |---|---|

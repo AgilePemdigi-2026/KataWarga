@@ -30,6 +30,9 @@ SINONIM_POLA = [
     (r'\b(sulit|susah|ribet)\b', 'sulit'),
 ]
 
+# Kata henti / filler temporal & frekuensi dalam ulasan pengguna
+STOPWORDS_POLA = r'\b(saat|waktu|ketika|selalu|sering|terus|tiap|setiap|pas)\b'
+
 
 def bersihkan_teks(teks: str) -> str:
     """Bersihkan teks dan terapkan penyelarasan sinonim keluhan."""
@@ -38,6 +41,7 @@ def bersihkan_teks(teks: str) -> str:
     t = str(teks).lower()
     for pola, pengganti in SINONIM_POLA:
         t = re.sub(pola, pengganti, t)
+    t = re.sub(STOPWORDS_POLA, ' ', t)
     t = re.sub(r'[^\w\s]', ' ', t)
     return re.sub(r'\s+', ' ', t).strip()
 
