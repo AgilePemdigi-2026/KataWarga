@@ -57,6 +57,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'accounts.context_processors.navigation',
             ],
         },
     },
@@ -98,6 +99,10 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/login/'
+
+# Pendaftaran mandiri tidak boleh menebak peran istimewa. Akun baru memakai
+# peran awal ini dan tetap nonaktif sampai diaktifkan RE/administrator.
+SIGNUP_DEFAULT_ROLE = 'TIM_DEVELOPER'
 
 # Stub peran dev (§4): dipakai selama Sprint 1-2 sebelum auth jadi
 DEV_ACTING_ROLE = os.environ.get('DEV_ACTING_ROLE', 'REQUIREMENTS_ENGINEER')

@@ -78,6 +78,12 @@
                 Sign up to get started with KataWarga.
             </p>
 
+            <div class="mt-4 rounded-lg border border-indigo-500/30 bg-indigo-500/10 p-3 text-[11px] leading-relaxed text-indigo-200">
+                Peran dan hak akses tidak dipilih saat mendaftar. Akun baru berstatus
+                <strong>menunggu aktivasi</strong> dan akan ditetapkan perannya oleh
+                Requirements Engineer atau administrator.
+            </div>
+
             <!-- Error Messages -->
             {% if form.errors %}
             <div class="mt-3 bg-red-500/10 border border-red-500/30 text-red-300 text-xs rounded-lg p-3 max-h-24 overflow-y-auto">
@@ -131,29 +137,6 @@
                         placeholder="name@example.com"
                         class="w-full h-[39px] bg-[#0F172B]/70 border border-[#314158] rounded-lg px-4 text-sm text-white placeholder-[#62748E] outline-none focus:border-[#7546EE] transition"
                     >
-                </div>
-
-                <!-- Role -->
-                <div>
-                    <label for="role" class="block text-xs text-[#CAD5E2] mb-1">
-                        Select Your Role
-                    </label>
-
-                    <select
-                        id="role"
-                        name="role"
-                        required
-                        class="w-full h-[39px] bg-[#0F172B]/70 border border-[#314158] rounded-lg px-4 text-sm text-white outline-none focus:border-[#7546EE] transition"
-                    >
-                        {% for value, label in form.fields.role.choices %}
-                        <option
-                            value="{{ value }}"
-                            {% if form.role.value == value %}selected{% endif %}
-                        >
-                            {{ label }}
-                        </option>
-                        {% endfor %}
-                    </select>
                 </div>
 
                 <!-- Password -->

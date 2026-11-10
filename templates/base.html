@@ -1,10 +1,13 @@
+
 <!DOCTYPE html>
 <html lang="id" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>{% block title %}KataWarga{% endblock %}</title>
-    <!-- Tailwind CSS (CDN standalone untuk dev tanpa npm build) -->
+
+    <!-- Tailwind CSS (CDN untuk development) -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -18,69 +21,145 @@
             }
         }
     </script>
+
     <!-- HTMX -->
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+
     {% block extra_head %}{% endblock %}
 </head>
-<body class="bg-gray-900 text-gray-100 min-h-screen flex" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
-    <!-- Sidebar -->
+
+<body
+    class="bg-gray-900 text-gray-100 min-h-screen flex"
+    hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
+>
+
+    <!-- SIDEBAR -->
     <aside class="w-64 bg-gray-800 border-r border-gray-700 min-h-screen p-4 flex flex-col flex-shrink-0">
+
+        <!-- Logo -->
         <div class="mb-8">
-            <h1 class="text-xl font-bold text-white tracking-wide">KataWarga</h1>
-            <p class="text-xs text-gray-400 mt-1">Otomatisasi User Story NLP</p>
+            <h1 class="text-xl font-bold text-white tracking-wide">
+                KataWarga
+            </h1>
+            <p class="text-xs text-gray-400 mt-1">
+                Otomatisasi User Story NLP
+            </p>
         </div>
-        <nav class="flex-1 space-y-1">
-            <a href="/susun-user-story" class="flex items-center px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition">
-                <span class="mr-3">📝</span> Susun User Story
+
+        <!-- Navigation -->
+        <nav class="flex-1 space-y-1" aria-label="Navigasi utama">
+
+            {% for item in sidebar_items %}
+            <a
+                href="{{ item.href }}"
+                data-nav="{{ item.key }}"
+                {% if active_section == item.key %}aria-current="page"{% endif %}
+                class="flex items-center px-3 py-2 rounded-lg text-sm border transition
+                    {% if active_section == item.key %}
+                        bg-indigo-600/20 text-white border-indigo-700/60
+                    {% else %}
+                        text-gray-300 border-transparent hover:bg-gray-700 hover:text-white
+                    {% endif %}"
+            >
+                {{ item.label }}
             </a>
-            <a href="/user-story" class="flex items-center px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition">
-                <span class="mr-3">📋</span> User Story Backlog
-            </a>
-            <a href="/backlog" class="flex items-center px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition">
-                <span class="mr-3">🚀</span> Sprint Backlog
-            </a>
-            <a href="/validasi-ekstraksi" class="flex items-center px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition">
-                <span class="mr-3">🔍</span> Validasi Ekstraksi
-            </a>
-            <a href="/kelola-role" class="flex items-center px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition">
-                <span class="mr-3">👥</span> Kelola Akses Role
-            </a>
+            {% endfor %}
+
         </nav>
-        <div class="pt-4 border-t border-gray-700 text-xs text-gray-400">
-            <p>Peran Aktif: <span class="font-semibold text-blue-400">{{ request.session.acting_role|default:user.role|default:"REQUIREMENTS_ENGINEER" }}</span></p>
-            <a href="/kelola-role" class="text-[11px] text-gray-500 hover:text-gray-300 underline mt-1 block">Ganti peran simulasi</a>
+
+        <!-- IDENTITAS & ROLE -->
+        <div class="mt-4 pt-4 border-t border-gray-700 space-y-3">
+
+            <div class="flex items-center gap-3">
+                <span class="w-9 h-9 rounded-full bg-indigo-600/30 border border-indigo-700/60 text-indigo-200 flex items-center justify-center text-sm font-bold flex-shrink-0">
+                    {{ request.user.username|slice:":1"|upper }}
+                </span>
+                <div class="min-w-0">
+                    <p class="text-sm font-semibold text-white truncate">
+                        {{ request.user.username }}
+                    </p>
+                    <p class="text-xs text-indigo-300 truncate">
+                        {{ effective_role_label }}
+                    </p>
+                </div>
+            </div>
+
+            {% if is_simulating_role %}
+            <div class="rounded-lg border border-amber-800/70 bg-amber-950/40 p-3 text-xs">
+                <p class="font-semibold text-amber-300">
+                    Mode simulasi
+                </p>
+                <p class="text-amber-200/80 mt-1">
+                    Peran asli: {{ original_role_label }}
+                </p>
+                <p class="text-amber-200/60 mt-0.5">
+                    Peran efektif: {{ effective_role_label }}
+                </p>
+
+                <form
+                    method="post"
+                    action="{% url 'accounts:switch_role' %}"
+                    class="mt-2"
+                >
+                    {% csrf_token %}
+                    <input type="hidden" name="acting_role" value="">
+                    <button
+                        type="submit"
+                        class="w-full px-2.5 py-1.5 rounded-md bg-amber-900/60 hover:bg-amber-800/70 border border-amber-800 text-amber-100 font-medium transition"
+                    >
+                        Kembali ke peran asli
+                    </button>
+                </form>
+            </div>
+            {% endif %}
+
+            {% if can_simulate_role %}
+            <a
+                href="{% url 'accounts:kelola_role' %}"
+                class="text-xs text-gray-400 hover:text-indigo-300 underline inline-block transition"
+            >
+                Panel simulasi peran
+            </a>
+            {% endif %}
+
         </div>
+
     </aside>
 
-    <!-- Content Area -->
+    <!-- CONTENT AREA -->
     <div class="flex-1 flex flex-col min-w-0">
-        <!-- Header -->
-        <header class="bg-gray-800 border-b border-gray-700 px-6 py-3 flex items-center justify-between">
-            <div class="text-sm text-gray-400">
-                Sprint 2 — Role, Ekstraksi, Clustering & Backlog Execution
-            </div>
-            <div class="flex items-center space-x-3 text-sm">
-                <span class="px-2 py-1 rounded bg-gray-700 text-xs text-gray-300">Sprint 2</span>
-            </div>
-        </header>
 
-        <!-- Messages -->
+        <!-- DJANGO MESSAGES -->
         {% if messages %}
         <div class="px-6 pt-4">
+
             {% for message in messages %}
-            <div class="p-3 mb-2 rounded-lg text-sm {% if message.tags == 'error' %}bg-red-900/80 text-red-200 border border-red-700{% elif message.tags == 'success' %}bg-green-900/80 text-green-200 border border-green-700{% else %}bg-blue-900/80 text-blue-200 border border-blue-700{% endif %}">
+
+            <div class="p-3 mb-2 rounded-lg text-sm
+                {% if message.tags == 'error' %}
+                    bg-red-900/80 text-red-200 border border-red-700
+                {% elif message.tags == 'success' %}
+                    bg-green-900/80 text-green-200 border border-green-700
+                {% else %}
+                    bg-blue-900/80 text-blue-200 border border-blue-700
+                {% endif %}
+            ">
                 {{ message }}
             </div>
+
             {% endfor %}
+
         </div>
         {% endif %}
 
-        <!-- Main Body -->
+        <!-- MAIN BODY -->
         <main class="flex-1 p-6">
             {% block content %}{% endblock %}
         </main>
+
     </div>
 
     {% block extra_js %}{% endblock %}
+
 </body>
 </html>
