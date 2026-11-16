@@ -10,52 +10,42 @@ from accounts.roles import role_label
 SIDEBAR_ITEMS = {
     'dashboard': {
         'label': 'Dashboard',
-        'icon': '📊',
         'url_name': 'dashboard:overview',
     },
     'pipeline': {
         'label': 'Extraction Pipeline',
-        'icon': '⚙️',
         'url_name': 'extraction:pipeline',
     },
     'clustering': {
         'label': 'Clustering',
-        'icon': '🧩',
         'url_name': 'extraction:cluster_list',
     },
     'validasi': {
         'label': 'Validasi Ekstraksi',
-        'icon': '🔍',
         'url_name': 'extraction:validasi_list',
     },
     'compose': {
         'label': 'Susun User Story',
-        'icon': '📝',
         'url_name': 'stories:susun',
     },
     'stories': {
         'label': 'User Story Backlog',
-        'icon': '📋',
         'url_name': 'stories:board',
     },
     'story_detail': {
         'label': 'Detail User Story',
-        'icon': '📄',
         'url_name': 'stories:detail_latest',
     },
     'backlog': {
         'label': 'Sprint Backlog',
-        'icon': '🚀',
         'url_name': 'backlog:list',
     },
     'backlog_detail': {
         'label': 'Detail Backlog',
-        'icon': '🗂️',
         'url_name': 'backlog:detail_latest',
     },
     'roles': {
         'label': 'Kelola Akses Role',
-        'icon': '👥',
         'url_name': 'accounts:kelola_role',
     },
 }
@@ -126,7 +116,6 @@ def _sidebar_items(effective_role):
         items.append({
             'key': key,
             'label': config['label'],
-            'icon': config['icon'],
             'href': href,
         })
 
