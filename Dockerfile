@@ -24,7 +24,7 @@ COPY requirements/base.txt requirements/prod.txt requirements/
 # Install CPU-only PyTorch terlebih dahulu untuk menghemat ~2.3GB download size di server Coolify,
 # kemudian install sisa dependensi produksi
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir torch>=2.0.0 --index-url https://download.pytorch.org/whl/cpu && \
+    pip install --no-cache-dir 'torch>=2.0.0' --index-url https://download.pytorch.org/whl/cpu && \
     pip install --no-cache-dir -r requirements/prod.txt
 
 # Copy source code proyek
