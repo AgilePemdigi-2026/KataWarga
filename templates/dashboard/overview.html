@@ -166,9 +166,6 @@
                     <a href="{% url 'extraction:pipeline' %}" class="block px-3 py-2.5 rounded-lg bg-indigo-600/80 hover:bg-indigo-500 text-white text-xs font-semibold transition">Lihat &amp; Kelola Extraction Pipeline</a>
                     <a href="{% url 'extraction:cluster_list' %}" class="block px-3 py-2.5 rounded-lg bg-gray-900 hover:bg-gray-700 border border-gray-700 text-gray-200 text-xs font-medium transition">Pantau Clustering</a>
                     <a href="{% url 'stories:susun' %}" class="block px-3 py-2.5 rounded-lg bg-gray-900 hover:bg-gray-700 border border-gray-700 text-gray-200 text-xs font-medium transition">Susun User Story</a>
-                    {% if can_manage_roles %}
-                    <a href="{% url 'accounts:kelola_role' %}" class="block px-3 py-2.5 rounded-lg bg-gray-900 hover:bg-gray-700 border border-gray-700 text-gray-200 text-xs font-medium transition">Kelola Akses Role</a>
-                    {% endif %}
                     {% elif is_analyst %}
                     <a href="{% url 'extraction:validasi_list' %}" class="block px-3 py-2.5 rounded-lg bg-indigo-600/80 hover:bg-indigo-500 text-white text-xs font-semibold transition">Validasi Ekstraksi</a>
                     <a href="{% url 'extraction:cluster_list' %}" class="block px-3 py-2.5 rounded-lg bg-gray-900 hover:bg-gray-700 border border-gray-700 text-gray-200 text-xs font-medium transition">Detail Cluster &amp; Komentar</a>
@@ -176,9 +173,15 @@
                     {% elif is_po %}
                     <a href="{% url 'stories:board' %}" class="block px-3 py-2.5 rounded-lg bg-indigo-600/80 hover:bg-indigo-500 text-white text-xs font-semibold transition">User Story Backlog</a>
                     <a href="{% url 'stories:detail_latest' %}" class="block px-3 py-2.5 rounded-lg bg-gray-900 hover:bg-gray-700 border border-gray-700 text-gray-200 text-xs font-medium transition">Detail User Story Terbaru</a>
+                    {% if can_manage_roles %}
+                    <a href="{% url 'accounts:kelola_role' %}" class="block px-3 py-2.5 rounded-lg bg-gray-900 hover:bg-gray-700 border border-gray-700 text-gray-200 text-xs font-medium transition">Kelola Akses Role</a>
+                    {% endif %}
                     {% elif is_developer %}
                     <a href="{% url 'backlog:list' %}" class="block px-3 py-2.5 rounded-lg bg-indigo-600/80 hover:bg-indigo-500 text-white text-xs font-semibold transition">Sprint Backlog</a>
                     <a href="{% url 'backlog:detail_latest' %}" class="block px-3 py-2.5 rounded-lg bg-gray-900 hover:bg-gray-700 border border-gray-700 text-gray-200 text-xs font-medium transition">Detail Backlog Aktif</a>
+                    {% endif %}
+                    {% if can_manage_roles and not is_re and not is_analyst and not is_developer and not is_po %}
+                    <a href="{% url 'accounts:kelola_role' %}" class="block px-3 py-2.5 rounded-lg bg-gray-900 hover:bg-gray-700 border border-gray-700 text-gray-200 text-xs font-medium transition">Kelola Akses Role</a>
                     {% endif %}
                 </div>
             </div>

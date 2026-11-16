@@ -12,13 +12,13 @@ from features.conftest import *  # noqa: F401,F403
 # ---------------------------------------------------------------------------
 
 @scenario('../sprint2/kelola_role.feature',
-          'FR-AUT-01 Requirements Engineer mengubah role pengguna (Happy Path)')
+          'FR-AUT-01 Product Owner mengubah role pengguna (Happy Path)')
 def test_fr_aut_01_ubah_role_happy_path():
     pass
 
 
 @scenario('../sprint2/kelola_role.feature',
-          'FR-AUT-02 Non-RE tidak bisa mengakses halaman kelola role')
+          'FR-AUT-02 Non-PO tidak bisa mengakses halaman kelola role')
 def test_fr_aut_02_akses_ditolak():
     pass
 

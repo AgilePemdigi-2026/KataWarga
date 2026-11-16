@@ -93,9 +93,12 @@
                                 <span>👤</span>
                                 <span>{{ u.username }}</span>
                                 {% if u.is_superuser %}
-                                <span class="px-1.5 py-0.5 bg-red-900/60 text-red-300 border border-red-700 text-[10px] rounded">Superuser</span>
+                                <span class="px-1.5 py-0.5 bg-red-900/60 text-red-300 border border-red-700 text-[10px] rounded font-semibold" title="Akun superuser dengan proteksi RBAC khusus">Superuser (Dilindungi)</span>
                                 {% elif u.is_staff %}
                                 <span class="px-1.5 py-0.5 bg-indigo-900/60 text-indigo-300 border border-indigo-700 text-[10px] rounded">Staff</span>
+                                {% endif %}
+                                {% if u.pk == request.user.pk %}
+                                <span class="px-1.5 py-0.5 bg-gray-700 text-gray-300 text-[10px] rounded">Akun Anda</span>
                                 {% endif %}
                             </div>
                         </td>
@@ -120,7 +123,17 @@
                                 <span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-900/50 text-amber-300 border border-amber-700">Menunggu Aktivasi</span>
                                 {% endif %}
 
-                                {% if u.pk != request.user.pk %}
+                                {% if u.pk == request.user.pk %}
+                                    {# Akun sendiri tidak dapat diubah statusnya #}
+                                {% elif u.is_superuser and not is_superuser %}
+                                    {# Product Owner dilarang mengubah status superuser #}
+                                {% elif u.is_superuser and is_superuser and u.is_active and active_superusers_count <= 1 %}
+                                    <button type="button" disabled
+                                            class="px-2.5 py-1 rounded-lg text-[11px] font-medium border border-gray-700 bg-gray-800 text-gray-500 cursor-not-allowed opacity-60"
+                                            title="Superuser aktif terakhir tidak dapat dinonaktifkan">
+                                        Nonaktifkan
+                                    </button>
+                                {% else %}
                                 <form method="post" action="{% url 'accounts:toggle_active' u.pk %}">
                                     {% csrf_token %}
                                     <button type="submit"
@@ -133,6 +146,11 @@
                             </div>
                         </td>
                         <td class="py-3.5 px-5">
+                            {% if u.pk == request.user.pk %}
+                                <span class="text-xs text-gray-500 italic">Tidak dapat mengubah peran sendiri</span>
+                            {% elif u.is_superuser and not is_superuser %}
+                                <span class="px-2.5 py-1 rounded-lg text-xs bg-gray-900/80 border border-gray-700 text-gray-400">Superuser (Dilindungi)</span>
+                            {% else %}
                             <form method="post" action="{% url 'accounts:ubah_role' u.pk %}" class="flex items-center gap-2">
                                 {% csrf_token %}
                                 <select name="role" class="bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-indigo-500">
@@ -146,6 +164,7 @@
                                     Simpan
                                 </button>
                             </form>
+                            {% endif %}
                         </td>
                     </tr>
                     {% empty %}
@@ -166,7 +185,7 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
             <div class="bg-gray-900/50 p-3 rounded-lg border border-gray-700/50">
                 <strong class="text-blue-300 block mb-1">Requirements Engineer</strong>
-                <p class="text-gray-400">Jalankan pipeline ekstraksi ulasan (UC-1), susun &amp; prioritaskan user story (UC-3), kelola akses role.</p>
+                <p class="text-gray-400">Jalankan pipeline ekstraksi ulasan (UC-1), susun &amp; prioritaskan user story (UC-3).</p>
             </div>
             <div class="bg-gray-900/50 p-3 rounded-lg border border-gray-700/50">
                 <strong class="text-yellow-300 block mb-1">Analyst</strong>
@@ -174,7 +193,7 @@
             </div>
             <div class="bg-gray-900/50 p-3 rounded-lg border border-gray-700/50">
                 <strong class="text-green-300 block mb-1">Product Owner</strong>
-                <p class="text-gray-400">Satu-satunya peran yang berhak Menyetujui atau Mengabaikan User Story ke Backlog (UC-4).</p>
+                <p class="text-gray-400">Satu-satunya peran yang berhak Menyetujui atau Mengabaikan User Story ke Backlog (UC-4), kelola akses role &amp; status akun.</p>
             </div>
             <div class="bg-gray-900/50 p-3 rounded-lg border border-gray-700/50">
                 <strong class="text-purple-300 block mb-1">Tim Developer</strong>

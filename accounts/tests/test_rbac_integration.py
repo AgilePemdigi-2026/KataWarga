@@ -222,8 +222,8 @@ def test_anonymous_users_are_redirected_to_login(client, url_name):
 SIDEBAR_CASES = [
     (
         "re",
-        {"dashboard", "pipeline", "clustering", "compose", "roles"},
-        {"validasi", "stories", "story_detail", "backlog", "backlog_detail"},
+        {"dashboard", "pipeline", "clustering", "compose"},
+        {"validasi", "stories", "story_detail", "backlog", "backlog_detail", "roles"},
         "Requirements Engineer",
     ),
     (
@@ -234,8 +234,8 @@ SIDEBAR_CASES = [
     ),
     (
         "po",
-        {"dashboard", "stories", "story_detail"},
-        {"pipeline", "clustering", "validasi", "compose", "backlog", "backlog_detail", "roles"},
+        {"dashboard", "stories", "story_detail", "roles"},
+        {"pipeline", "clustering", "validasi", "compose", "backlog", "backlog_detail"},
         "Product Owner",
     ),
     (
@@ -332,10 +332,10 @@ PAGE_ACCESS_CASES = [
     ("dev", "backlog:list", 200),
     ("re", "backlog:list", 403),
     ("analyst", "backlog:list", 403),
-    # Kelola role: RE dan staf; staf diuji terpisah.
-    ("re", "accounts:kelola_role", 200),
+    # Kelola role: PO dan Superuser; non-PO/non-superuser dilarang (403).
+    ("re", "accounts:kelola_role", 403),
     ("analyst", "accounts:kelola_role", 403),
-    ("po", "accounts:kelola_role", 403),
+    ("po", "accounts:kelola_role", 200),
     ("dev", "accounts:kelola_role", 403),
 ]
 
@@ -388,8 +388,9 @@ def test_detail_page_access_matrix(
     assert client.get(url).status_code == expected
 
 
-def test_non_requirements_engineer_cannot_change_roles(client, users):
-    client.force_login(users["po"])
+def test_unauthorized_roles_cannot_change_roles(client, users):
+    # Requirements Engineer dilarang mengubah role pengguna (403)
+    client.force_login(users["re"])
     response = client.post(
         reverse("accounts:ubah_role", kwargs={"pk": users["dev"].pk}),
         {"role": User.RolePengguna.ANALYST},
@@ -763,8 +764,20 @@ def test_signup_cannot_choose_privileged_role_and_needs_activation(
     assert inactive_login.status_code == 200
     assert "_auth_user_id" not in client.session
 
-    # RE mengaktifkan akun melalui Kelola Role.
+    # RE tidak berwenang mengaktifkan akun (403 Forbidden).
     client.force_login(users["re"])
+    re_activation = client.post(
+        reverse(
+            "accounts:toggle_active",
+            kwargs={"pk": new_user.pk},
+        ),
+    )
+    assert re_activation.status_code == 403
+    new_user.refresh_from_db()
+    assert new_user.is_active is False
+
+    # PO mengaktifkan akun melalui Kelola Role.
+    client.force_login(users["po"])
     activation = client.post(
         reverse(
             "accounts:toggle_active",
