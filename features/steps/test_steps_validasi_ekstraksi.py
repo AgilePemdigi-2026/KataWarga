@@ -68,7 +68,11 @@ def given_field_who(vctx, db, hasil_ekstraksi_factory, nilai):
 
 @given(parsers.parse('field "what" berisi "{nilai}"'))
 def given_field_what(vctx, db, nilai):
-    pass
+    anggota = vctx.cluster.anggota_set.last()
+    if anggota:
+        he = anggota.hasil_ekstraksi
+        he.teks_what = nilai
+        he.save(update_fields=['teks_what'])
 
 
 @given('field "who" kosong')

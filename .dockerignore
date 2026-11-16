@@ -11,3 +11,4 @@ staticfiles
 logs
 .env
 .env.local
+
