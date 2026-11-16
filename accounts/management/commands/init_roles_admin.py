@@ -1,10 +1,11 @@
 """
 Management command: python manage.py init_roles_admin
 Idempoten untuk inisialisasi akun Superuser Admin dan akun percontohan 4 peran sistem.
-Sangat berguna untuk deployment Coolify/produksi agar dosen dan penguji dapat langsung login.
+Dijalankan secara manual setelah database siap (KW-01, KW-11).
+Tidak mengubah atau menaikkan privilege akun yang sudah ada.
 """
 import os
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from accounts.models import User
 
@@ -16,15 +17,19 @@ class Command(BaseCommand):
         with transaction.atomic():
             self.seed_superuser()
             self.seed_role_users()
-        self.stdout.write(self.style.SUCCESS("Berhasil inisialisasi akun admin & 4 peran."))
+        self.stdout.write(self.style.SUCCESS("Proses inisialisasi akun selesai."))
 
     def seed_superuser(self):
-        admin_username = os.environ.get('DJANGO_SUPERUSER_USERNAME', 'admin')
-        admin_email = os.environ.get('DJANGO_SUPERUSER_EMAIL', 'admin@katawarga.caiis.ai.id')
-        admin_password = os.environ.get('DJANGO_SUPERUSER_PASSWORD', 'admin123')
+        admin_username = os.environ.get('DJANGO_SUPERUSER_USERNAME', 'admin').strip()
+        admin_email = os.environ.get('DJANGO_SUPERUSER_EMAIL', 'admin@katawarga.caiis.ai.id').strip()
+        admin_password = os.environ.get('DJANGO_SUPERUSER_PASSWORD', '').strip()
 
         user = User.objects.filter(username=admin_username).first()
         if not user:
+            if not admin_password:
+                raise CommandError(
+                    "Variabel lingkungan DJANGO_SUPERUSER_PASSWORD wajib diatur untuk membuat superuser."
+                )
             user = User.objects.create_superuser(
                 username=admin_username,
                 email=admin_email,
@@ -33,13 +38,14 @@ class Command(BaseCommand):
             )
             self.stdout.write(self.style.SUCCESS(f"Superuser '{admin_username}' berhasil dibuat."))
         else:
-            user.is_staff = True
-            user.is_superuser = True
-            user.save(update_fields=['is_staff', 'is_superuser'])
-            self.stdout.write(f"Superuser '{admin_username}' sudah ada (status diperbarui).")
+            self.stdout.write(
+                self.style.WARNING(
+                    f"Superuser '{admin_username}' sudah ada (dilewati, hak akses dan role tidak diubah)."
+                )
+            )
 
     def seed_role_users(self):
-        default_password = os.environ.get('DEMO_USERS_PASSWORD', 'password123')
+        demo_password = os.environ.get('DEMO_USERS_PASSWORD', '').strip()
         roles_data = [
             ('re_user', 're@katawarga.caiis.ai.id', User.RolePengguna.REQUIREMENTS_ENGINEER),
             ('analyst_user', 'analyst@katawarga.caiis.ai.id', User.RolePengguna.ANALYST),
@@ -49,14 +55,20 @@ class Command(BaseCommand):
         for username, email, role in roles_data:
             user = User.objects.filter(username=username).first()
             if not user:
+                if not demo_password:
+                    raise CommandError(
+                        "Variabel lingkungan DEMO_USERS_PASSWORD wajib diatur untuk membuat akun demo peran."
+                    )
                 user = User.objects.create_user(
                     username=username,
                     email=email,
-                    password=default_password,
+                    password=demo_password,
                     role=role,
                 )
                 self.stdout.write(self.style.SUCCESS(f"Akun demo '{username}' ({role}) berhasil dibuat."))
             else:
-                user.role = role
-                user.save(update_fields=['role'])
-                self.stdout.write(f"Akun demo '{username}' sudah ada (role diperbarui).")
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"Akun demo '{username}' sudah ada (dilewati, role tidak diubah)."
+                    )
+                )

@@ -241,11 +241,14 @@ def tolak_cluster_view(request, pk):
     cluster = get_object_or_404(Cluster, pk=pk)
     user = request.user if getattr(request.user, 'is_authenticated', False) else None
 
-    validation.tolak_cluster(cluster, validator_user=user)
-    messages.info(
-        request,
-        f"Cluster '{cluster.nama_topik}' ditolak dan ditandai dihapus.",
-    )
+    try:
+        validation.tolak_cluster(cluster, validator_user=user)
+        messages.info(
+            request,
+            f"Cluster '{cluster.nama_topik}' ditolak dan ditandai dihapus.",
+        )
+    except validation.ValidationError as exc:
+        messages.error(request, str(exc))
 
     if request.headers.get('HX-Request'):
         response = HttpResponse(status=200)

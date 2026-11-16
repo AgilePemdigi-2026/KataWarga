@@ -24,7 +24,7 @@ COPY requirements/base.txt requirements/prod.txt requirements/
 # Install CPU-only PyTorch terlebih dahulu untuk menghemat ~2.3GB download size di server Coolify,
 # kemudian install sisa dependensi produksi
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir torch>=2.0.0 --index-url https://download.pytorch.org/whl/cpu && \
+    pip install --no-cache-dir 'torch>=2.0.0' --index-url https://download.pytorch.org/whl/cpu && \
     pip install --no-cache-dir -r requirements/prod.txt
 
 # Copy source code proyek
@@ -33,5 +33,5 @@ COPY . .
 # Expose port internal aplikasi
 EXPOSE 8000
 
-# Entrypoint: Migrasi DB, collectstatic, inisialisasi akun demo/admin, lalu jalankan Gunicorn
-CMD ["sh", "-c", "python manage.py migrate --noinput && python manage.py collectstatic --noinput && python manage.py init_roles_admin && gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 120 --access-logfile - --error-logfile -"]
+# Entrypoint: Migrasi DB, collectstatic, lalu jalankan Gunicorn (bootstrap akun dijalankan manual, KW-01/KW-11)
+CMD ["sh", "-c", "python manage.py migrate --noinput && python manage.py collectstatic --noinput && gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 120 --access-logfile - --error-logfile -"]

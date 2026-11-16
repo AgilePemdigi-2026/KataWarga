@@ -169,3 +169,84 @@ def test_validasi_hanya_analyst(client, extraction_data):
     resp = client.post(url)
     assert resp.status_code == 403
 
+
+@pytest.mark.django_db
+def test_validasi_state_machine_guard(client, extraction_data):
+    """
+    KW-04: Transisi status hanya diizinkan dari MENUNGGU_VALIDASI.
+    - Setujui 2x harus gagal
+    - Tolak setelah disetujui harus gagal
+    - Tolak 2x harus gagal
+    - Setujui setelah ditolak harus gagal
+    """
+    clustering.kelompokkan_ekstraksi(distance_threshold=0.65)
+    cluster = Cluster.objects.first()
+    analyst = extraction_data['analyst']
+
+    # 1. Setujui pertama kali -> BERHASIL (MENUNGGU_VALIDASI -> TERVALIDASI)
+    validation.setujui_cluster(cluster, validator_user=analyst)
+    cluster.refresh_from_db()
+    assert cluster.status_cluster == Cluster.StatusCluster.TERVALIDASI
+
+    # 2. Coba setujui kedua kali -> HARUS GAGAL
+    with pytest.raises(validation.ValidationError) as exc:
+        validation.setujui_cluster(cluster, validator_user=analyst)
+    assert "Hanya cluster berstatus 'Menunggu Validasi'" in str(exc.value)
+
+    # 3. Coba tolak cluster yang sudah TERVALIDASI -> HARUS GAGAL
+    with pytest.raises(validation.ValidationError) as exc:
+        validation.tolak_cluster(cluster, validator_user=analyst)
+    assert "Hanya cluster berstatus 'Menunggu Validasi'" in str(exc.value)
+
+    # Buat cluster baru untuk pengujian tolak
+    cluster_b = Cluster.objects.create(
+        nama_topik='Topik B',
+        status_cluster=Cluster.StatusCluster.MENUNGGU_VALIDASI,
+    )
+
+    # 4. Tolak pertama kali -> BERHASIL (MENUNGGU_VALIDASI -> DIABAIKAN)
+    validation.tolak_cluster(cluster_b, validator_user=analyst)
+    cluster_b.refresh_from_db()
+    assert cluster_b.status_cluster == Cluster.StatusCluster.DIABAIKAN
+
+    # 5. Coba tolak kedua kali -> HARUS GAGAL
+    with pytest.raises(validation.ValidationError) as exc:
+        validation.tolak_cluster(cluster_b, validator_user=analyst)
+    assert "Hanya cluster berstatus 'Menunggu Validasi'" in str(exc.value)
+
+    # 6. Coba setujui cluster yang sudah DIABAIKAN -> HARUS GAGAL
+    with pytest.raises(validation.ValidationError) as exc:
+        validation.setujui_cluster(cluster_b, validator_user=analyst)
+    assert "Hanya cluster berstatus 'Menunggu Validasi'" in str(exc.value)
+
+
+@pytest.mark.django_db
+def test_views_validasi_berulang_menolak_tanpa_error_500(client, extraction_data):
+    """
+    KW-04: View setujui dan tolak menangani ValidationError secara anggun
+    dengan pesan error dan redirect, bukan crash 500.
+    """
+    clustering.kelompokkan_ekstraksi(distance_threshold=0.65)
+    cluster = Cluster.objects.first()
+    analyst = extraction_data['analyst']
+    client.force_login(analyst)
+
+    # Setujui sekali
+    url_setujui = reverse('extraction:setujui_cluster', kwargs={'pk': cluster.pk})
+    resp1 = client.post(url_setujui, follow=True)
+    assert resp1.status_code == 200
+
+    # Setujui kedua kali lewat view -> tidak 500, redirect 200 dengan pesan error
+    resp2 = client.post(url_setujui, follow=True)
+    assert resp2.status_code == 200
+    messages_text = [m.message for m in resp2.context['messages']]
+    assert any("Hanya cluster berstatus 'Menunggu Validasi'" in m for m in messages_text)
+
+    # Tolak cluster yang sudah disetujui lewat view -> tidak 500, redirect 200 dengan pesan error
+    url_tolak = reverse('extraction:tolak_cluster', kwargs={'pk': cluster.pk})
+    resp3 = client.post(url_tolak, follow=True)
+    assert resp3.status_code == 200
+    messages_text_3 = [m.message for m in resp3.context['messages']]
+    assert any("Hanya cluster berstatus 'Menunggu Validasi'" in m for m in messages_text_3)
+
+

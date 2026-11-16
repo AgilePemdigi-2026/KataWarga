@@ -7,6 +7,12 @@ from django.test import Client
 from django.utils import timezone
 
 
+@pytest.fixture(autouse=True)
+def enable_db_access_for_all_bdd_tests(db):
+    """Memastikan test database selalu siap untuk semua skenario BDD."""
+    pass
+
+
 @pytest.fixture
 def client():
     """Django test client."""
