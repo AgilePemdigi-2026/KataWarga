@@ -264,9 +264,7 @@ def toggle_active_view(request, pk):
         )
 
     with transaction.atomic():
-        target_user = get_object_or_404(
-            User.objects.select_for_update(), pk=pk
-        )
+        target_user = get_object_or_404(User, pk=pk)
 
         # 1. Product Owner (dan non-superuser) dilarang mengaktifkan/menonaktifkan superuser
         if target_user.is_superuser and not request.user.is_superuser:
@@ -275,15 +273,26 @@ def toggle_active_view(request, pk):
             )
 
         # 2. Proteksi superuser aktif terakhir (mencegah lockout administratif & race condition)
+        # Mengunci seluruh row superuser aktif dalam urutan id konsisten (order_by('id'))
+        # dengan list evaluation nyata (bukan .count()) untuk benar-benar mengunci row di PostgreSQL.
         if target_user.is_superuser and target_user.is_active:
-            active_superusers = (
+            active_superusers = list(
                 User.objects.select_for_update()
                 .filter(is_superuser=True, is_active=True)
+                .order_by("id")
             )
-            if active_superusers.count() <= 1:
+            if len(active_superusers) <= 1:
                 return HttpResponseForbidden(
                     "Tidak dapat menonaktifkan superuser aktif terakhir untuk mencegah lockout administratif."
                 )
+            for su in active_superusers:
+                if su.pk == target_user.pk:
+                    target_user = su
+                    break
+        else:
+            target_user = get_object_or_404(
+                User.objects.select_for_update(), pk=pk
+            )
 
         # 3. Tidak boleh menonaktifkan akun sendiri
         if target_user.pk == request.user.pk:

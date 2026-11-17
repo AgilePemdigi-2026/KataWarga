@@ -18,9 +18,12 @@ Cakupan:
 - Penegakan proteksi CSRF menggunakan enforce_csrf_checks=True;
 - Audit dan proteksi jalur Django Admin (CustomUserAdmin).
 """
+import threading
+from unittest.mock import MagicMock
 import pytest
 from django.contrib.admin.sites import AdminSite
 from django.core.exceptions import PermissionDenied
+from django.db import connections
 from django.test import Client, RequestFactory
 from django.urls import reverse
 
@@ -621,7 +624,7 @@ def test_csrf_protection_on_account_management_endpoints(rbac_users):
 
 
 # ===========================================================================
-# 13. Audit Jalur Django Admin (Review #4)
+# 13. Audit Jalur Django Admin & Concurrency (Review #4)
 # ===========================================================================
 
 def test_django_admin_superuser_protection(rbac_users):
@@ -653,20 +656,234 @@ def test_django_admin_superuser_protection(rbac_users):
     assert custom_admin.has_delete_permission(req_staff, obj=admin_user) is False
 
     # 3. Superuser tidak boleh menghapus superuser aktif terakhir
-    # Set admin2 inaktif agar admin_user menjadi superuser aktif terakhir
     admin2_user.is_active = False
     admin2_user.save(update_fields=["is_active"])
     assert User.objects.filter(is_superuser=True, is_active=True).count() == 1
     assert custom_admin.has_delete_permission(req_admin, obj=admin_user) is False
 
     # 4. save_model menolak jika non-superuser mencoba menyimpan superuser
-    with pytest.raises(PermissionDenied, match="Hanya superuser"):
+    with pytest.raises(PermissionDenied, match="Product Owner|Hanya superuser"):
         custom_admin.save_model(req_staff, admin_user, None, change=True)
 
     # 5. delete_model menolak jika non-superuser mencoba menghapus superuser
-    with pytest.raises(PermissionDenied, match="Hanya superuser"):
+    with pytest.raises(PermissionDenied, match="Product Owner|Hanya superuser"):
         custom_admin.delete_model(req_staff, admin_user)
 
     # 6. delete_model menolak penghapusan superuser aktif terakhir
-    with pytest.raises(PermissionDenied, match="superuse"):
+    with pytest.raises(PermissionDenied, match="superuser aktif terakhir"):
         custom_admin.delete_model(req_admin, admin_user)
+
+
+def test_django_admin_non_po_staff_forbidden_from_managing_users(client, rbac_users):
+    """
+    Memverifikasi staf biasa non-PO (misal RE, Analyst, Dev dengan is_staff=True)
+    dilarang keras mengelola User di Django Admin:
+    - has_module_permission -> False
+    - has_view_permission -> False
+    - has_add_permission -> False
+    - has_change_permission -> False
+    - has_delete_permission -> False
+    - get_actions -> {}
+    - save_model / delete_model / delete_queryset -> PermissionDenied
+    - GET /admin/accounts/user/ -> 403 Forbidden
+    """
+    admin_site = AdminSite()
+    custom_admin = CustomUserAdmin(User, admin_site)
+    rf = RequestFactory()
+
+    staff_user = rbac_users["staff_re"]  # is_staff=True, role=REQUIREMENTS_ENGINEER
+    target_user = rbac_users["target_ordinary"]
+
+    req_staff = rf.get("/admin/accounts/user/")
+    req_staff.user = staff_user
+
+    assert custom_admin.has_module_permission(req_staff) is False
+    assert custom_admin.has_view_permission(req_staff) is False
+    assert custom_admin.has_add_permission(req_staff) is False
+    assert custom_admin.has_change_permission(req_staff, obj=target_user) is False
+    assert custom_admin.has_delete_permission(req_staff, obj=target_user) is False
+    assert custom_admin.get_actions(req_staff) == {}
+
+    with pytest.raises(PermissionDenied, match="Hanya superuser dan Product Owner"):
+        custom_admin.save_model(req_staff, target_user, None, change=True)
+
+    with pytest.raises(PermissionDenied, match="Hanya superuser dan Product Owner"):
+        custom_admin.delete_model(req_staff, target_user)
+
+    with pytest.raises(PermissionDenied, match="Hanya superuser dan Product Owner"):
+        custom_admin.delete_queryset(req_staff, User.objects.filter(pk=target_user.pk))
+
+    client.force_login(staff_user)
+    resp = client.get("/admin/accounts/user/")
+    assert resp.status_code == 403
+
+
+def test_django_admin_product_owner_privilege_escalation_prevented(rbac_users):
+    """
+    Memverifikasi Product Owner di Django Admin tidak dapat:
+    - Memberikan hak is_staff atau is_superuser (escalation);
+    - Memberikan grup (groups) atau user_permissions;
+    - Memodifikasi akun superuser;
+    - Memodifikasi peran (role) akun sendiri;
+    - Menonaktifkan akun sendiri.
+    """
+    admin_site = AdminSite()
+    custom_admin = CustomUserAdmin(User, admin_site)
+    rf = RequestFactory()
+
+    po_staff = _create_user("po_staff_admin", User.RolePengguna.PRODUCT_OWNER, is_staff=True)
+    admin_user = rbac_users["admin"]
+    target_user = rbac_users["target_ordinary"]
+
+    req_po = rf.get("/admin/accounts/user/")
+    req_po.user = po_staff
+
+    # 1. PO berhak mengakses module User, view, dan add
+    assert custom_admin.has_module_permission(req_po) is True
+    assert custom_admin.has_view_permission(req_po) is True
+    assert custom_admin.has_add_permission(req_po) is True
+
+    # 2. PO tidak berhak change atau delete superuser
+    assert custom_admin.has_change_permission(req_po, obj=admin_user) is False
+    assert custom_admin.has_delete_permission(req_po, obj=admin_user) is False
+
+    # 3. PO tidak boleh delete akun sendiri
+    assert custom_admin.has_delete_permission(req_po, obj=po_staff) is False
+
+    # 4. Readonly fields mengunci flag privilege dan role sendiri
+    readonly = custom_admin.get_readonly_fields(req_po, obj=po_staff)
+    assert "is_superuser" in readonly
+    assert "is_staff" in readonly
+    assert "groups" in readonly
+    assert "user_permissions" in readonly
+    assert "role" in readonly
+    assert "is_active" in readonly
+
+    # 5. PO mencoba memberikan is_staff=True -> Ditolak PermissionDenied
+    new_staff_attempt = User(username="newbie_staff", role=User.RolePengguna.TIM_DEVELOPER, is_staff=True)
+    with pytest.raises(PermissionDenied, match="Product Owner tidak boleh memberikan hak staf atau superuser"):
+        custom_admin.save_model(req_po, new_staff_attempt, None, change=False)
+
+    # 6. PO mencoba memberikan is_superuser=True -> Ditolak PermissionDenied
+    new_su_attempt = User(username="newbie_su", role=User.RolePengguna.TIM_DEVELOPER, is_superuser=True)
+    with pytest.raises(PermissionDenied, match="Product Owner tidak boleh memberikan hak staf atau superuser"):
+        custom_admin.save_model(req_po, new_su_attempt, None, change=False)
+
+    # 7. PO mencoba memberikan groups/user_permissions via save_related -> Ditolak PermissionDenied
+    form_groups = MagicMock(cleaned_data={"groups": [1]})
+    with pytest.raises(PermissionDenied, match="Product Owner tidak boleh memberikan grup atau permissions"):
+        custom_admin.save_related(req_po, form_groups, None, change=False)
+
+    form_perms = MagicMock(cleaned_data={"user_permissions": [1]})
+    with pytest.raises(PermissionDenied, match="Product Owner tidak boleh memberikan grup atau permissions"):
+        custom_admin.save_related(req_po, form_perms, None, change=False)
+
+    # 8. PO mencoba memodifikasi superuser -> Ditolak PermissionDenied
+    with pytest.raises(PermissionDenied, match="Product Owner tidak dapat memodifikasi akun superuser"):
+        custom_admin.save_model(req_po, admin_user, None, change=True)
+
+    # 9. PO mencoba mengubah role akun sendiri -> Ditolak PermissionDenied
+    po_staff_copy = User.objects.get(pk=po_staff.pk)
+    po_staff_copy.role = User.RolePengguna.REQUIREMENTS_ENGINEER
+    with pytest.raises(PermissionDenied, match="Product Owner tidak dapat mengubah peran akun sendiri"):
+        custom_admin.save_model(req_po, po_staff_copy, None, change=True)
+
+    # 10. PO mencoba menonaktifkan akun sendiri -> Ditolak PermissionDenied
+    po_staff_active_copy = User.objects.get(pk=po_staff.pk)
+    po_staff_active_copy.is_active = False
+    with pytest.raises(PermissionDenied, match="tidak dapat menonaktifkan akun"):
+        custom_admin.save_model(req_po, po_staff_active_copy, None, change=True)
+
+
+def test_django_admin_bulk_actions_anti_lockout(rbac_users):
+    """
+    Memverifikasi delete_queryset mempertahankan invariant minimal satu superuser aktif:
+    - Penghapusan bulk yang mencakup semua superuser aktif wajib ditolak (PermissionDenied);
+    - Penghapusan yang mencakup akun sendiri wajib ditolak (PermissionDenied);
+    - Penghapusan superuser oleh non-superuser wajib ditolak (PermissionDenied).
+    """
+    admin_site = AdminSite()
+    custom_admin = CustomUserAdmin(User, admin_site)
+    rf = RequestFactory()
+
+    admin_user = rbac_users["admin"]
+    admin2_user = rbac_users["admin2"]
+    po_user = rbac_users["po"]
+
+    admin_user.is_active = True
+    admin_user.save()
+    admin2_user.is_active = True
+    admin2_user.save()
+
+    req_admin = rf.get("/admin/accounts/user/")
+    req_admin.user = admin_user
+
+    req_po = rf.get("/admin/accounts/user/")
+    req_po.user = po_user
+
+    # 1. Non-superuser dilarang menghapus superuser lewat bulk action
+    with pytest.raises(PermissionDenied, match="Hanya superuser yang dapat menghapus akun superuser"):
+        custom_admin.delete_queryset(req_po, User.objects.filter(pk=admin2_user.pk))
+
+    # 2. Superuser dilarang menghapus akun sendiri lewat bulk action
+    with pytest.raises(PermissionDenied, match="tidak dapat menghapus akun sendiri"):
+        custom_admin.delete_queryset(req_admin, User.objects.filter(pk=admin_user.pk))
+
+    # 3. Superuser dilarang menghapus SEMUA superuser aktif sekaligus (anti-lockout)
+    with pytest.raises(PermissionDenied, match="menghapus semua superuser aktif"):
+        custom_admin.delete_queryset(req_admin, User.objects.filter(is_superuser=True))
+
+
+@pytest.mark.django_db(transaction=True)
+def test_concurrent_superuser_status_toggle_anti_lockout(rbac_users):
+    """
+    Pengujian konkurensi PostgreSQL / Multi-threading:
+    Dua transaksi superuser mencoba menonaktifkan satu sama lain secara bersamaan.
+    Mekanisme select_for_update().order_by('id') dengan evaluasi list() nyata
+    menjamin locking konsisten tanpa deadlock, dan invariant minimal satu superuser aktif
+    selalu terjaga (anti-lockout).
+    """
+    admin1 = rbac_users["admin"]
+    admin2 = rbac_users["admin2"]
+
+    admin1.is_active = True
+    admin1.save()
+    admin2.is_active = True
+    admin2.save()
+
+    assert User.objects.filter(is_superuser=True, is_active=True).count() == 2
+
+    barrier = threading.Barrier(2)
+    results = [None, None]
+
+    def worker(actor_pk, target_pk, index):
+        connections.close_all()
+        try:
+            barrier.wait(timeout=5)
+            actor = User.objects.get(pk=actor_pk)
+            c = Client()
+            c.force_login(actor)
+            resp = c.post(reverse("accounts:toggle_active", kwargs={"pk": target_pk}))
+            results[index] = resp.status_code
+        except Exception as exc:
+            results[index] = exc
+        finally:
+            connections.close_all()
+
+    t1 = threading.Thread(target=worker, args=(admin1.pk, admin2.pk, 0))
+    t2 = threading.Thread(target=worker, args=(admin2.pk, admin1.pk, 1))
+
+    t1.start()
+    t2.start()
+    t1.join(timeout=10)
+    t2.join(timeout=10)
+
+    # Invariant mutlak: minimal 1 superuser aktif harus selalu tersisa di database
+    active_superusers = User.objects.filter(is_superuser=True, is_active=True)
+    assert active_superusers.count() >= 1, (
+        f"KRITIS: Lockout terjadi! Superuser aktif = {active_superusers.count()}"
+    )
+
+    # Setidaknya satu thread berhasil atau aman terserialisasi
+    valid_statuses = [r for r in results if isinstance(r, int)]
+    assert len(valid_statuses) >= 1
