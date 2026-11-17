@@ -38,14 +38,20 @@ def users_setup(db):
 
 @pytest.mark.django_db
 def test_kelola_role_view_access(client, users_setup):
+    po_user = users_setup['po']
     re_user = users_setup['re']
     dev_user = users_setup['dev']
 
-    # RE bisa akses halaman kelola role
-    client.force_login(re_user)
+    # Product Owner bisa akses halaman kelola role
+    client.force_login(po_user)
     resp = client.get(reverse('accounts:kelola_role'))
     assert resp.status_code == 200
     assert 'Kelola Akses Role Pengguna' in resp.content.decode('utf-8')
+
+    # Requirements Engineer tidak berwenang mengelola role
+    client.force_login(re_user)
+    resp_re = client.get(reverse('accounts:kelola_role'))
+    assert resp_re.status_code == 403
 
     # Developer tidak berwenang mengelola role
     client.force_login(dev_user)
@@ -55,10 +61,10 @@ def test_kelola_role_view_access(client, users_setup):
 
 @pytest.mark.django_db
 def test_ubah_role_sukses(client, users_setup):
-    re_user = users_setup['re']
+    po_user = users_setup['po']
     dev_user = users_setup['dev']
 
-    client.force_login(re_user)
+    client.force_login(po_user)
     url = reverse('accounts:ubah_role', kwargs={'pk': dev_user.pk})
     resp = client.post(url, {'role': User.RolePengguna.ANALYST}, follow=True)
 
@@ -69,10 +75,10 @@ def test_ubah_role_sukses(client, users_setup):
 
 @pytest.mark.django_db
 def test_ubah_role_invalid(client, users_setup):
-    re_user = users_setup['re']
+    po_user = users_setup['po']
     dev_user = users_setup['dev']
 
-    client.force_login(re_user)
+    client.force_login(po_user)
     url = reverse('accounts:ubah_role', kwargs={'pk': dev_user.pk})
     resp = client.post(url, {'role': 'INVALID_ROLE'}, follow=True)
 

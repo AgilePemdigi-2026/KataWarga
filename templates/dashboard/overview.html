@@ -1,3 +1,4 @@
+
 {% extends 'base.html' %}
 
 {% block title %}Dashboard — KataWarga{% endblock %}
@@ -8,294 +9,560 @@
     <header class="kw-page-head" style="margin-bottom:0">
         <div>
             <p class="kw-eyebrow">Dashboard Overview</p>
-            <h1 class="kw-title">Selamat datang, {{ request.user.username }}</h1>
+            <h1 class="kw-title">
+                Selamat datang, {{ request.user.username }}
+            </h1>
         </div>
+
         <div class="kw-actions">
-            <span class="kw-chip" title="Waktu data ulasan terakhir diperbarui">
-                <svg aria-hidden="true"><use href="#icon-clock"></use></svg>
-                Ulasan: {{ metrics.ulasan_terakhir|date:"d M Y H:i"|default:"belum ada" }}
+            <span
+                class="kw-chip"
+                title="Waktu data ulasan terakhir diperbarui"
+            >
+                <svg aria-hidden="true">
+                    <use href="#icon-clock"></use>
+                </svg>
+                Ulasan:
+                {{ metrics.ulasan_terakhir|date:"d M Y H:i"|default:"belum ada" }}
             </span>
-            <span class="kw-chip" title="Waktu ekstraksi terakhir dijalankan">
-                <svg aria-hidden="true"><use href="#icon-sparkles"></use></svg>
-                Ekstraksi: {{ metrics.ekstraksi_terakhir|date:"d M Y H:i"|default:"belum ada" }}
+
+            <span
+                class="kw-chip"
+                title="Waktu ekstraksi terakhir dijalankan"
+            >
+                <svg aria-hidden="true">
+                    <use href="#icon-sparkles"></use>
+                </svg>
+                Ekstraksi:
+                {{ metrics.ekstraksi_terakhir|date:"d M Y H:i"|default:"belum ada" }}
             </span>
         </div>
     </header>
 
-    <!-- ==================================================================
-         METRIK UTAMA
-         ================================================================== -->
+    <!-- KPI CARDS -->
     <section class="kw-kpi-grid" aria-label="Metrik utama">
+
         <article class="kw-kpi kw-kpi--info">
             <div class="kw-kpi__top">
-                <span class="kw-kpi__label">Total Scraped Reviews</span>
+                <span class="kw-kpi__label">
+                    Total Scraped Reviews
+                </span>
                 <span class="kw-kpi__icon" aria-hidden="true">
-                    <svg><use href="#icon-database"></use></svg>
+                    <svg>
+                        <use href="#icon-database"></use>
+                    </svg>
                 </span>
             </div>
-            <p class="kw-kpi__value kw-tabular">{{ metrics.total_ulasan }}</p>
+
+            <p class="kw-kpi__value kw-tabular">
+                {{ metrics.total_ulasan }}
+            </p>
+
             <p class="kw-kpi__hint">
-                {{ metrics.ulasan_lolos }} lolos filter &middot; {{ metrics.ulasan_dibuang }} dibuang
+                {{ metrics.ulasan_lolos }} lolos filter
+                &middot;
+                {{ metrics.ulasan_dibuang }} dibuang
             </p>
         </article>
 
         <article class="kw-kpi kw-kpi--warning">
             <div class="kw-kpi__top">
-                <span class="kw-kpi__label">Filtered Noise Rate</span>
+                <span class="kw-kpi__label">
+                    Filtered Noise Rate
+                </span>
                 <span class="kw-kpi__icon" aria-hidden="true">
-                    <svg><use href="#icon-filter"></use></svg>
+                    <svg>
+                        <use href="#icon-filter"></use>
+                    </svg>
                 </span>
             </div>
-            <p class="kw-kpi__value kw-tabular">{{ metrics.filtered_noise_rate }}%</p>
-            <p class="kw-kpi__hint">Ulasan pendek/generik yang disaring dari total data.</p>
+
+            <p class="kw-kpi__value kw-tabular">
+                {{ metrics.filtered_noise_rate }}%
+            </p>
+
+            <p class="kw-kpi__hint">
+                Ulasan pendek/generik yang disaring dari total data.
+            </p>
         </article>
 
         <article class="kw-kpi kw-kpi--success">
             <div class="kw-kpi__top">
-                <span class="kw-kpi__label">Extracted User Stories</span>
+                <span class="kw-kpi__label">
+                    Extracted User Stories
+                </span>
                 <span class="kw-kpi__icon" aria-hidden="true">
-                    <svg><use href="#icon-stories"></use></svg>
+                    <svg>
+                        <use href="#icon-stories"></use>
+                    </svg>
                 </span>
             </div>
-            <p class="kw-kpi__value kw-tabular">{{ metrics.total_user_story }}</p>
+
+            <p class="kw-kpi__value kw-tabular">
+                {{ metrics.total_user_story }}
+            </p>
+
             <p class="kw-kpi__hint">
-                {{ metrics.story_menunggu }} menunggu &middot; {{ metrics.story_disetujui }} disetujui
+                {{ metrics.story_menunggu }} menunggu
+                &middot;
+                {{ metrics.story_disetujui }} disetujui
             </p>
         </article>
 
         <article class="kw-kpi">
             <div class="kw-kpi__top">
-                <span class="kw-kpi__label">Model Confidence Score</span>
+                <span class="kw-kpi__label">
+                    Model Confidence Score
+                </span>
                 <span class="kw-kpi__icon" aria-hidden="true">
-                    <svg><use href="#icon-chart"></use></svg>
+                    <svg>
+                        <use href="#icon-chart"></use>
+                    </svg>
                 </span>
             </div>
-            <p class="kw-kpi__value kw-tabular">{{ metrics.model_confidence_score }}%</p>
+
+            <p class="kw-kpi__value kw-tabular">
+                {{ metrics.model_confidence_score }}%
+            </p>
+
             <p class="kw-kpi__hint">
-                Rata-rata keyakinan {{ metrics.total_ekstraksi }} hasil ekstraksi.
+                Rata-rata keyakinan
+                {{ metrics.total_ekstraksi }} hasil ekstraksi.
             </p>
         </article>
+
     </section>
 
+    <!-- DASHBOARD CONTENT -->
     <div class="kw-split kw-split--dashboard">
+
         <div class="kw-stack">
 
-            <!-- ==========================================================
-                 TREN BULANAN
-                 ========================================================== -->
+            <!-- SENTIMENT CHART -->
             <section class="kw-card">
                 <div class="kw-card__head">
                     <div>
-                        <h2 class="kw-card__title">Review Sentiment vs. User Story Generation</h2>
-                        <p class="kw-card__desc">Enam bulan terakhir. Sentimen memakai skala 1–5; jumlah user story memakai sumbu kanan.</p>
+                        <h2 class="kw-card__title">
+                            Review Sentiment vs. User Story Generation
+                        </h2>
+                        <p class="kw-card__desc">
+                            Enam bulan terakhir. Sentimen memakai skala 1–5;
+                            jumlah user story memakai sumbu kanan.
+                        </p>
                     </div>
+
                     {% if metrics.tren.has_data %}
                     <span class="kw-badge kw-badge--success">
                         <span class="kw-status-dot"></span>
                         Data tersedia
                     </span>
                     {% else %}
-                    <span class="kw-badge kw-badge--neutral">Belum ada data</span>
+                    <span class="kw-badge kw-badge--neutral">
+                        Belum ada data
+                    </span>
                     {% endif %}
                 </div>
+
                 <div class="kw-card__body">
+
                     {% if metrics.tren.has_data %}
+
                     <div class="kw-chart-wrap">
-                        <div class="kw-chart" data-chart-source="dashboard-chart-data"></div>
+                        <div
+                            class="kw-chart"
+                            data-chart-source="dashboard-chart-data"
+                        ></div>
                     </div>
+
                     <div class="kw-legend">
                         <span class="kw-legend__item">
-                            <span class="kw-legend__swatch" style="background:var(--kw-accent)"></span>
+                            <span
+                                class="kw-legend__swatch"
+                                style="background:var(--kw-accent)"
+                            ></span>
                             Rata-rata sentimen (skala 1–5)
                         </span>
+
                         <span class="kw-legend__item">
-                            <span class="kw-legend__swatch" style="background:var(--kw-success)"></span>
+                            <span
+                                class="kw-legend__swatch"
+                                style="background:var(--kw-success)"
+                            ></span>
                             User Story dibuat
                         </span>
                     </div>
+
                     {{ metrics.chart_data|json_script:"dashboard-chart-data" }}
+
                     {% else %}
+
                     <div class="kw-empty">
                         <span class="kw-empty__icon">
-                            <svg aria-hidden="true"><use href="#icon-chart"></use></svg>
+                            <svg aria-hidden="true">
+                                <use href="#icon-chart"></use>
+                            </svg>
                         </span>
-                        <p class="kw-empty__title">Tren belum dapat ditampilkan</p>
-                        <p class="kw-empty__text">
-                            Belum ada ulasan bertanggal atau user story pada enam bulan terakhir.
-                            Jalankan scraping atau impor CSV untuk mulai mengisi data.
+
+                        <p class="kw-empty__title">
+                            Tren belum dapat ditampilkan
                         </p>
+
+                        <p class="kw-empty__text">
+                            Belum ada ulasan bertanggal atau user story
+                            pada enam bulan terakhir. Jalankan scraping
+                            atau impor CSV untuk mulai mengisi data.
+                        </p>
+
                         {% if is_re %}
-                        <a class="kw-btn kw-btn--secondary kw-btn--sm kw-empty__action" href="{% url 'reviews:import_csv' %}">
-                            <svg aria-hidden="true"><use href="#icon-upload"></use></svg>
+                        <a
+                            class="kw-btn kw-btn--secondary kw-btn--sm kw-empty__action"
+                            href="{% url 'reviews:import_csv' %}"
+                        >
+                            <svg aria-hidden="true">
+                                <use href="#icon-upload"></use>
+                            </svg>
                             Impor CSV ulasan
                         </a>
                         {% endif %}
                     </div>
+
                     {% endif %}
                 </div>
             </section>
 
-            <!-- ==========================================================
-                 STATUS PIPELINE
-                 ========================================================== -->
+            <!-- STATUS PIPELINE -->
             <section class="kw-card">
                 <div class="kw-card__head">
                     <div>
-                        <h2 class="kw-card__title">Status Pipeline</h2>
-                        <p class="kw-card__desc">Posisi data saat ini dari ulasan mentah sampai eksekusi backlog.</p>
+                        <h2 class="kw-card__title">
+                            Status Pipeline
+                        </h2>
+                        <p class="kw-card__desc">
+                            Posisi data saat ini dari ulasan mentah
+                            sampai eksekusi backlog.
+                        </p>
                     </div>
+
                     {% if is_re %}
-                    <a class="kw-btn kw-btn--secondary kw-btn--xs" href="{% url 'extraction:pipeline' %}">
+                    <a
+                        class="kw-btn kw-btn--secondary kw-btn--xs"
+                        href="{% url 'extraction:pipeline' %}"
+                    >
                         Buka Pipeline
-                        <svg aria-hidden="true"><use href="#icon-arrow-right"></use></svg>
+                        <svg aria-hidden="true">
+                            <use href="#icon-arrow-right"></use>
+                        </svg>
                     </a>
+
                     {% elif is_analyst %}
-                    <a class="kw-btn kw-btn--secondary kw-btn--xs" href="{% url 'extraction:validasi_list' %}">
+                    <a
+                        class="kw-btn kw-btn--secondary kw-btn--xs"
+                        href="{% url 'extraction:validasi_list' %}"
+                    >
                         Buka Validasi
-                        <svg aria-hidden="true"><use href="#icon-arrow-right"></use></svg>
+                        <svg aria-hidden="true">
+                            <use href="#icon-arrow-right"></use>
+                        </svg>
                     </a>
                     {% endif %}
                 </div>
+
                 <div class="kw-card__body">
+
                     <div class="kw-grid kw-grid--4" style="gap:10px">
+
                         <div class="kw-mini-stat">
-                            <p class="kw-mini-stat__value kw-tabular">{{ metrics.total_cluster }}</p>
-                            <p class="kw-mini-stat__label">Total Cluster</p>
+                            <p class="kw-mini-stat__value kw-tabular">
+                                {{ metrics.total_cluster }}
+                            </p>
+                            <p class="kw-mini-stat__label">
+                                Total Cluster
+                            </p>
                         </div>
-                        <div class="kw-mini-stat" style="border-color:var(--kw-warning-border)">
-                            <p class="kw-mini-stat__value kw-tabular" style="color:var(--kw-warning-text)">{{ metrics.cluster_menunggu_validasi }}</p>
-                            <p class="kw-mini-stat__label">Menunggu Validasi</p>
+
+                        <div
+                            class="kw-mini-stat"
+                            style="border-color:var(--kw-warning-border)"
+                        >
+                            <p
+                                class="kw-mini-stat__value kw-tabular"
+                                style="color:var(--kw-warning-text)"
+                            >
+                                {{ metrics.cluster_menunggu_validasi }}
+                            </p>
+                            <p class="kw-mini-stat__label">
+                                Menunggu Validasi
+                            </p>
                         </div>
-                        <div class="kw-mini-stat" style="border-color:var(--kw-success-border)">
-                            <p class="kw-mini-stat__value kw-tabular" style="color:var(--kw-success-text)">{{ metrics.cluster_tervalidasi }}</p>
-                            <p class="kw-mini-stat__label">Cluster Tervalidasi</p>
+
+                        <div
+                            class="kw-mini-stat"
+                            style="border-color:var(--kw-success-border)"
+                        >
+                            <p
+                                class="kw-mini-stat__value kw-tabular"
+                                style="color:var(--kw-success-text)"
+                            >
+                                {{ metrics.cluster_tervalidasi }}
+                            </p>
+                            <p class="kw-mini-stat__label">
+                                Cluster Tervalidasi
+                            </p>
                         </div>
-                        <div class="kw-mini-stat" style="border-color:var(--kw-accent-border)">
-                            <p class="kw-mini-stat__value kw-tabular" style="color:var(--kw-accent-text)">{{ metrics.backlog_total }}</p>
-                            <p class="kw-mini-stat__label">Item Backlog</p>
+
+                        <div
+                            class="kw-mini-stat"
+                            style="border-color:var(--kw-accent-border)"
+                        >
+                            <p
+                                class="kw-mini-stat__value kw-tabular"
+                                style="color:var(--kw-accent-text)"
+                            >
+                                {{ metrics.backlog_total }}
+                            </p>
+                            <p class="kw-mini-stat__label">
+                                Item Backlog
+                            </p>
                         </div>
+
                     </div>
 
                     <div class="kw-divider"></div>
 
                     <div class="kw-grid kw-grid--3" style="gap:10px">
+
                         <div class="kw-bar-row">
                             <div class="kw-bar-row__meta">
                                 <span>Siap dieksekusi</span>
-                                <span class="kw-tabular">{{ metrics.backlog_siap }}</span>
+                                <span class="kw-tabular">
+                                    {{ metrics.backlog_siap }}
+                                </span>
                             </div>
+
                             <div class="kw-progress">
-                                <span class="kw-progress__bar" style="width:{% if metrics.backlog_total %}{% widthratio metrics.backlog_siap metrics.backlog_total 100 %}{% else %}0{% endif %}%;background:var(--kw-accent)"></span>
+                                <span
+                                    class="kw-progress__bar"
+                                    style="width:{% if metrics.backlog_total %}{% widthratio metrics.backlog_siap metrics.backlog_total 100 %}{% else %}0{% endif %}%;background:var(--kw-accent)"
+                                ></span>
                             </div>
                         </div>
+
                         <div class="kw-bar-row">
                             <div class="kw-bar-row__meta">
                                 <span>Sedang dikerjakan</span>
-                                <span class="kw-tabular">{{ metrics.backlog_dikerjakan }}</span>
+                                <span class="kw-tabular">
+                                    {{ metrics.backlog_dikerjakan }}
+                                </span>
                             </div>
+
                             <div class="kw-progress">
-                                <span class="kw-progress__bar" style="width:{% if metrics.backlog_total %}{% widthratio metrics.backlog_dikerjakan metrics.backlog_total 100 %}{% else %}0{% endif %}%;background:var(--kw-info)"></span>
+                                <span
+                                    class="kw-progress__bar"
+                                    style="width:{% if metrics.backlog_total %}{% widthratio metrics.backlog_dikerjakan metrics.backlog_total 100 %}{% else %}0{% endif %}%;background:var(--kw-info)"
+                                ></span>
                             </div>
                         </div>
+
                         <div class="kw-bar-row">
                             <div class="kw-bar-row__meta">
                                 <span>Selesai</span>
-                                <span class="kw-tabular">{{ metrics.backlog_selesai }}</span>
+                                <span class="kw-tabular">
+                                    {{ metrics.backlog_selesai }}
+                                </span>
                             </div>
+
                             <div class="kw-progress">
-                                <span class="kw-progress__bar" style="width:{% if metrics.backlog_total %}{% widthratio metrics.backlog_selesai metrics.backlog_total 100 %}{% else %}0{% endif %}%;background:var(--kw-success)"></span>
+                                <span
+                                    class="kw-progress__bar"
+                                    style="width:{% if metrics.backlog_total %}{% widthratio metrics.backlog_selesai metrics.backlog_total 100 %}{% else %}0{% endif %}%;background:var(--kw-success)"
+                                ></span>
                             </div>
                         </div>
+
                     </div>
                 </div>
             </section>
 
-            <!-- ==========================================================
-                 CLUSTER TERBESAR
-                 ========================================================== -->
+            <!-- TOP CLUSTERS -->
             <section class="kw-card">
                 <div class="kw-card__head">
                     <div>
-                        <h2 class="kw-card__title">Biggest Topic Cluster</h2>
-                        <p class="kw-card__desc">Lima topik dengan jumlah ulasan anggota terbanyak.</p>
+                        <h2 class="kw-card__title">
+                            Biggest Topic Cluster
+                        </h2>
+                        <p class="kw-card__desc">
+                            Lima topik dengan jumlah ulasan anggota terbanyak.
+                        </p>
                     </div>
-                    <span class="kw-badge kw-badge--neutral">{{ metrics.top_clusters|length }} topik</span>
+
+                    <span class="kw-badge kw-badge--neutral">
+                        {{ metrics.top_clusters|length }} topik
+                    </span>
                 </div>
+
                 <div class="kw-card__body">
+
                     {% for cluster in metrics.top_clusters %}
                     <div class="kw-bar-row">
+
                         <div class="kw-bar-row__meta">
                             <span>
                                 {% if is_re or is_analyst %}
-                                <a href="{% url 'extraction:cluster_detail' cluster.pk %}" class="kw-text" style="font-weight:600">{{ cluster.nama_topik }}</a>
+                                <a
+                                    href="{% url 'extraction:cluster_detail' cluster.pk %}"
+                                    class="kw-text"
+                                    style="font-weight:600"
+                                >
+                                    {{ cluster.nama_topik }}
+                                </a>
                                 {% else %}
-                                <span class="kw-text" style="font-weight:600">{{ cluster.nama_topik }}</span>
+                                <span
+                                    class="kw-text"
+                                    style="font-weight:600"
+                                >
+                                    {{ cluster.nama_topik }}
+                                </span>
                                 {% endif %}
                             </span>
-                            <span class="kw-tabular">{{ cluster.jumlah_anggota }} ulasan</span>
+
+                            <span class="kw-tabular">
+                                {{ cluster.jumlah_anggota }} ulasan
+                            </span>
                         </div>
+
                         <div class="kw-progress">
-                            <span class="kw-progress__bar" style="width:{% if metrics.total_ulasan %}{% widthratio cluster.jumlah_anggota metrics.total_ulasan 100 %}{% else %}0{% endif %}%;background:var(--kw-accent)"></span>
+                            <span
+                                class="kw-progress__bar"
+                                style="width:{% if metrics.total_ulasan %}{% widthratio cluster.jumlah_anggota metrics.total_ulasan 100 %}{% else %}0{% endif %}%;background:var(--kw-accent)"
+                            ></span>
                         </div>
+
                     </div>
+
                     {% empty %}
+
                     <div class="kw-empty kw-empty--plain">
                         <span class="kw-empty__icon">
-                            <svg aria-hidden="true"><use href="#icon-clustering"></use></svg>
+                            <svg aria-hidden="true">
+                                <use href="#icon-clustering"></use>
+                            </svg>
                         </span>
-                        <p class="kw-empty__title">Belum ada cluster</p>
-                        <p class="kw-empty__text">Jalankan pipeline ekstraksi terlebih dahulu untuk mengelompokkan ulasan.</p>
+
+                        <p class="kw-empty__title">
+                            Belum ada cluster
+                        </p>
+
+                        <p class="kw-empty__text">
+                            Jalankan pipeline ekstraksi terlebih dahulu
+                            untuk mengelompokkan ulasan.
+                        </p>
                     </div>
+
                     {% endfor %}
+
                 </div>
             </section>
+
         </div>
 
+        <!-- APPLICATION RATINGS -->
         <aside class="kw-stack">
-            <!-- ==========================================================
-                 DISTRIBUSI APLIKASI
-                 ========================================================== -->
+
             <section class="kw-card">
                 <div class="kw-card__head">
                     <div>
-                        <h2 class="kw-card__title">Rata-rata Rating Aplikasi</h2>
-                        <p class="kw-card__desc">Distribusi bintang 1–5 dari ulasan tersimpan.</p>
+                        <h2 class="kw-card__title">
+                            Rata-rata Rating Aplikasi
+                        </h2>
+                        <p class="kw-card__desc">
+                            Distribusi bintang 1–5 dari ulasan tersimpan.
+                        </p>
                     </div>
                 </div>
+
                 <div class="kw-card__body">
+
                     {% for app in metrics.aplikasi %}
+
                     <div class="kw-app-item">
                         <div class="kw-app-item__name">
-                            <span class="kw-truncate">{{ app.nama_aplikasi }}</span>
+
+                            <span class="kw-truncate">
+                                {{ app.nama_aplikasi }}
+                            </span>
+
                             <span class="kw-badge kw-badge--warning">
-                                <svg aria-hidden="true" style="width:10px;height:10px"><use href="#icon-star"></use></svg>
+                                <svg
+                                    aria-hidden="true"
+                                    style="width:10px;height:10px"
+                                >
+                                    <use href="#icon-star"></use>
+                                </svg>
+
                                 {{ app.rata_rating|floatformat:1|default:"—" }}
                             </span>
                         </div>
-                        <p class="kw-app-item__meta">{{ app.jumlah_ulasan }} ulasan</p>
+
+                        <p class="kw-app-item__meta">
+                            {{ app.jumlah_ulasan }} ulasan
+                        </p>
+
                         {% for row in app.distribusi_bintang %}
+
                         <div class="kw-star-row">
-                            <span class="kw-nowrap">{{ row.bintang }} <svg aria-hidden="true" style="display:inline;width:9px;height:9px;vertical-align:-1px"><use href="#icon-star"></use></svg></span>
+
+                            <span class="kw-nowrap">
+                                {{ row.bintang }}
+                                <svg
+                                    aria-hidden="true"
+                                    style="display:inline;width:9px;height:9px;vertical-align:-1px"
+                                >
+                                    <use href="#icon-star"></use>
+                                </svg>
+                            </span>
+
                             <div class="kw-progress">
-                                <span class="kw-progress__bar" style="width:{{ row.persen }}%;background:var(--kw-warning)"></span>
+                                <span
+                                    class="kw-progress__bar"
+                                    style="width:{{ row.persen }}%;background:var(--kw-warning)"
+                                ></span>
                             </div>
-                            <span class="kw-star-row__count kw-tabular">{{ row.jumlah }}</span>
+
+                            <span class="kw-star-row__count kw-tabular">
+                                {{ row.jumlah }}
+                            </span>
+
                         </div>
+
                         {% endfor %}
                     </div>
+
                     {% empty %}
+
                     <div class="kw-empty kw-empty--plain">
                         <span class="kw-empty__icon">
-                            <svg aria-hidden="true"><use href="#icon-app-window"></use></svg>
+                            <svg aria-hidden="true">
+                                <use href="#icon-app-window"></use>
+                            </svg>
                         </span>
-                        <p class="kw-empty__title">Belum ada aplikasi target</p>
-                        <p class="kw-empty__text">Aplikasi dibuat otomatis saat ulasan diimpor atau diskrap.</p>
+
+                        <p class="kw-empty__title">
+                            Belum ada aplikasi target
+                        </p>
+
+                        <p class="kw-empty__text">
+                            Aplikasi dibuat otomatis saat ulasan
+                            diimpor atau diskrap.
+                        </p>
                     </div>
+
                     {% endfor %}
+
                 </div>
             </section>
 
         </aside>
     </div>
+
 </div>
 {% endblock %}
