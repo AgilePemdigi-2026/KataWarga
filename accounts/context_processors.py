@@ -58,7 +58,6 @@ SIDEBAR_BY_ROLE = {
         'pipeline',
         'clustering',
         'compose',
-        'roles',
     ),
     User.RolePengguna.ANALYST: (
         'dashboard',
@@ -70,6 +69,7 @@ SIDEBAR_BY_ROLE = {
         'dashboard',
         'stories',
         'story_detail',
+        'roles',
     ),
     User.RolePengguna.TIM_DEVELOPER: (
         'dashboard',
@@ -100,11 +100,16 @@ _ACTIVE_SECTIONS = {
 }
 
 
-def _sidebar_items(effective_role):
+def _sidebar_items(effective_role, is_superuser=False, can_manage_roles=False):
     """Bangun daftar menu sidebar yang aman untuk peran efektif."""
     items = []
+    keys = list(SIDEBAR_BY_ROLE.get(effective_role, ()))
+    if 'roles' in keys and not can_manage_roles:
+        keys.remove('roles')
+    elif can_manage_roles and 'roles' not in keys:
+        keys.append('roles')
 
-    for key in SIDEBAR_BY_ROLE.get(effective_role, ()):
+    for key in keys:
         config = SIDEBAR_ITEMS[key]
 
         try:
@@ -141,8 +146,8 @@ def navigation(request):
     can_manage_roles = bool(
         is_authenticated
         and (
-            user.is_staff
-            or effective_role == User.RolePengguna.REQUIREMENTS_ENGINEER
+            user.is_superuser
+            or original_role == User.RolePengguna.PRODUCT_OWNER
         )
     )
 
@@ -168,5 +173,5 @@ def navigation(request):
         'is_developer': effective_role == User.RolePengguna.TIM_DEVELOPER,
         'active_section': active_section,
         'active_url_name': active_url_name,
-        'sidebar_items': _sidebar_items(effective_role),
+        'sidebar_items': _sidebar_items(effective_role, is_superuser=bool(user and user.is_superuser), can_manage_roles=can_manage_roles),
     }

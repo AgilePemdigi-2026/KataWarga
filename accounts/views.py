@@ -2,6 +2,7 @@
 
 from django import forms
 from django.conf import settings
+from django.db import transaction
 from django.contrib import messages
 from django.contrib.auth import get_user_model, login, logout
 from django.contrib.auth.decorators import login_required
@@ -22,7 +23,7 @@ class SignUpForm(UserCreationForm):
     """
     Pendaftaran mandiri tanpa pemilihan peran.
 
-    Peran dan status aktif akun ditetapkan oleh Requirements Engineer atau
+    Peran dan status aktif akun ditetapkan oleh Product Owner atau
     administrator melalui halaman Kelola Akses Role. Ini mencegah pengguna
     memberi dirinya sendiri peran istimewa (termasuk ``is_staff``).
     """
@@ -120,7 +121,7 @@ def signup_view(request):
             messages.success(
                 request,
                 "Akun berhasil dibuat. Akun menunggu aktivasi dan penetapan "
-                "peran oleh Requirements Engineer atau administrator.",
+                "peran oleh Product Owner atau administrator.",
             )
             return redirect("accounts:login")
     else:
@@ -148,11 +149,20 @@ def logout_view(request):
 
 
 def _can_manage_roles(request):
-    """Kebijakan administratif: Requirements Engineer atau staf/admin."""
-    acting_role = _get_acting_role(request)
+    """
+    Kebijakan administratif RBAC KataWarga:
+    Hanya Superuser (is_superuser=True) atau Product Owner (role == PRODUCT_OWNER).
+    Peran lain (Requirements Engineer, Analyst, Tim Developer) dilarang (HTTP 403).
+    Kewenangan administratif harus berdasarkan role asli di database, bukan role simulasi.
+    """
+    user = getattr(request, "user", None)
     return bool(
-        acting_role == User.RolePengguna.REQUIREMENTS_ENGINEER
-        or request.user.is_staff
+        user
+        and user.is_authenticated
+        and (
+            user.is_superuser
+            or user.role == User.RolePengguna.PRODUCT_OWNER
+        )
     )
 
 
@@ -163,12 +173,15 @@ def kelola_role_view(request):
 
     if not _can_manage_roles(request):
         return HttpResponseForbidden(
-            "Hanya Requirements Engineer atau Administrator "
-            "yang dapat mengelola peran."
+            "Hanya Product Owner atau Superuser yang dapat mengelola peran."
         )
 
     users = User.objects.all().order_by("username")
     roles = User.RolePengguna.choices
+
+    active_superusers_count = User.objects.filter(
+        is_superuser=True, is_active=True
+    ).count()
 
     return render(
         request,
@@ -178,6 +191,8 @@ def kelola_role_view(request):
             "roles": roles,
             "acting_role": acting_role,
             "acting_role_label": role_label(acting_role),
+            "is_superuser": request.user.is_superuser,
+            "active_superusers_count": active_superusers_count,
         },
     )
 
@@ -187,29 +202,43 @@ def kelola_role_view(request):
 def ubah_role_view(request, pk):
     if request.method != "POST":
         return HttpResponseForbidden(
-            "Metode tidak diizinkan."
+            "Metode tidak diizinkan. Gunakan metode POST."
         )
 
     if not _can_manage_roles(request):
         return HttpResponseForbidden(
-            "Hanya Requirements Engineer atau Administrator "
-            "yang dapat mengubah peran."
+            "Hanya Product Owner atau Superuser yang dapat mengubah peran."
         )
 
-    target_user = get_object_or_404(User, pk=pk)
-
-    new_role = request.POST.get("role", "").strip()
-    valid_roles = [choice[0] for choice in User.RolePengguna.choices]
-
-    if new_role not in valid_roles:
-        messages.error(
-            request,
-            "Pilihan peran tidak valid."
+    with transaction.atomic():
+        target_user = get_object_or_404(
+            User.objects.select_for_update(), pk=pk
         )
-        return redirect("accounts:kelola_role")
 
-    target_user.role = new_role
-    target_user.save(update_fields=["role"])
+        # 1. Pengguna dilarang mengubah perannya sendiri
+        if target_user.pk == request.user.pk:
+            return HttpResponseForbidden(
+                "Anda tidak dapat mengubah peran akun sendiri."
+            )
+
+        # 2. Product Owner (dan non-superuser) dilarang mengubah akun superuser
+        if target_user.is_superuser and not request.user.is_superuser:
+            return HttpResponseForbidden(
+                "Product Owner tidak memiliki izin untuk mengubah peran superuser."
+            )
+
+        new_role = request.POST.get("role", "").strip()
+        valid_roles = [choice[0] for choice in User.RolePengguna.choices]
+
+        if new_role not in valid_roles:
+            messages.error(
+                request,
+                "Pilihan peran tidak valid."
+            )
+            return redirect("accounts:kelola_role")
+
+        target_user.role = new_role
+        target_user.save(update_fields=["role"])
 
     messages.success(
         request,
@@ -223,31 +252,64 @@ def ubah_role_view(request, pk):
 # AKTIVASI / NONAKTIFKAN AKUN
 @login_required
 def toggle_active_view(request, pk):
-    """Aktifkan atau nonaktifkan akun hasil pendaftaran mandiri."""
+    """Aktifkan atau nonaktifkan akun."""
     if request.method != "POST":
-        return HttpResponseForbidden("Metode tidak diizinkan.")
+        return HttpResponseForbidden(
+            "Metode tidak diizinkan. Gunakan metode POST."
+        )
 
     if not _can_manage_roles(request):
         return HttpResponseForbidden(
-            "Hanya Requirements Engineer atau Administrator "
-            "yang dapat mengubah status akun."
+            "Hanya Product Owner atau Superuser yang dapat mengubah status akun."
         )
 
-    target_user = get_object_or_404(User, pk=pk)
+    with transaction.atomic():
+        target_user = get_object_or_404(User, pk=pk)
 
-    if target_user.pk == request.user.pk:
-        messages.error(request, "Anda tidak dapat menonaktifkan akun sendiri.")
-        return redirect("accounts:kelola_role")
+        # 1. Product Owner (dan non-superuser) dilarang mengaktifkan/menonaktifkan superuser
+        if target_user.is_superuser and not request.user.is_superuser:
+            return HttpResponseForbidden(
+                "Product Owner tidak memiliki izin untuk mengaktifkan atau menonaktifkan superuser."
+            )
 
-    target_user.is_active = not target_user.is_active
-    target_user.save(update_fields=["is_active"])
+        # 2. Proteksi superuser aktif terakhir (mencegah lockout administratif & race condition)
+        # Mengunci seluruh row superuser aktif dalam urutan id konsisten (order_by('id'))
+        # dengan list evaluation nyata (bukan .count()) untuk benar-benar mengunci row di PostgreSQL.
+        if target_user.is_superuser and target_user.is_active:
+            active_superusers = list(
+                User.objects.select_for_update()
+                .filter(is_superuser=True, is_active=True)
+                .order_by("id")
+            )
+            if len(active_superusers) <= 1:
+                return HttpResponseForbidden(
+                    "Tidak dapat menonaktifkan superuser aktif terakhir untuk mencegah lockout administratif."
+                )
+            for su in active_superusers:
+                if su.pk == target_user.pk:
+                    target_user = su
+                    break
+        else:
+            target_user = get_object_or_404(
+                User.objects.select_for_update(), pk=pk
+            )
+
+        # 3. Tidak boleh menonaktifkan akun sendiri
+        if target_user.pk == request.user.pk:
+            return HttpResponseForbidden(
+                "Anda tidak dapat menonaktifkan akun sendiri."
+            )
+
+        target_user.is_active = not target_user.is_active
+        target_user.save(update_fields=["is_active"])
 
     status = "diaktifkan" if target_user.is_active else "dinonaktifkan"
     messages.success(
         request,
-        f"Akun '{target_user.username}' berhasil {status}.",
+        f"Akun '{target_user.username}' berhasil {status}."
     )
     return redirect("accounts:kelola_role")
+
 
 
 # SWITCH ROLE (KHUSUS DEVELOPMENT)
