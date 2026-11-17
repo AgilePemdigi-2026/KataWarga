@@ -2,6 +2,7 @@
 
 from django import forms
 from django.conf import settings
+from django.db import transaction
 from django.contrib import messages
 from django.contrib.auth import get_user_model, login, logout
 from django.contrib.auth.decorators import login_required
@@ -152,21 +153,17 @@ def _can_manage_roles(request):
     Kebijakan administratif RBAC KataWarga:
     Hanya Superuser (is_superuser=True) atau Product Owner (role == PRODUCT_OWNER).
     Peran lain (Requirements Engineer, Analyst, Tim Developer) dilarang (HTTP 403).
+    Kewenangan administratif harus berdasarkan role asli di database, bukan role simulasi.
     """
-    if not request.user.is_authenticated:
-        return False
-    if request.user.is_superuser:
-        return True
-    acting_role = _get_acting_role(request)
-    if acting_role == User.RolePengguna.PRODUCT_OWNER:
-        return True
-    if (
-        settings.DEBUG
-        and request.user.is_staff
-        and request.user.role == User.RolePengguna.PRODUCT_OWNER
-    ):
-        return True
-    return False
+    user = getattr(request, "user", None)
+    return bool(
+        user
+        and user.is_authenticated
+        and (
+            user.is_superuser
+            or user.role == User.RolePengguna.PRODUCT_OWNER
+        )
+    )
 
 
 # KELOLA ROLE
@@ -213,32 +210,35 @@ def ubah_role_view(request, pk):
             "Hanya Product Owner atau Superuser yang dapat mengubah peran."
         )
 
-    target_user = get_object_or_404(User, pk=pk)
-
-    # 1. Pengguna dilarang mengubah perannya sendiri
-    if target_user.pk == request.user.pk:
-        return HttpResponseForbidden(
-            "Anda tidak dapat mengubah peran akun sendiri."
+    with transaction.atomic():
+        target_user = get_object_or_404(
+            User.objects.select_for_update(), pk=pk
         )
 
-    # 2. Product Owner (dan non-superuser) dilarang mengubah akun superuser
-    if target_user.is_superuser and not request.user.is_superuser:
-        return HttpResponseForbidden(
-            "Product Owner tidak memiliki izin untuk mengubah peran superuser."
-        )
+        # 1. Pengguna dilarang mengubah perannya sendiri
+        if target_user.pk == request.user.pk:
+            return HttpResponseForbidden(
+                "Anda tidak dapat mengubah peran akun sendiri."
+            )
 
-    new_role = request.POST.get("role", "").strip()
-    valid_roles = [choice[0] for choice in User.RolePengguna.choices]
+        # 2. Product Owner (dan non-superuser) dilarang mengubah akun superuser
+        if target_user.is_superuser and not request.user.is_superuser:
+            return HttpResponseForbidden(
+                "Product Owner tidak memiliki izin untuk mengubah peran superuser."
+            )
 
-    if new_role not in valid_roles:
-        messages.error(
-            request,
-            "Pilihan peran tidak valid."
-        )
-        return redirect("accounts:kelola_role")
+        new_role = request.POST.get("role", "").strip()
+        valid_roles = [choice[0] for choice in User.RolePengguna.choices]
 
-    target_user.role = new_role
-    target_user.save(update_fields=["role"])
+        if new_role not in valid_roles:
+            messages.error(
+                request,
+                "Pilihan peran tidak valid."
+            )
+            return redirect("accounts:kelola_role")
+
+        target_user.role = new_role
+        target_user.save(update_fields=["role"])
 
     messages.success(
         request,
@@ -263,32 +263,36 @@ def toggle_active_view(request, pk):
             "Hanya Product Owner atau Superuser yang dapat mengubah status akun."
         )
 
-    target_user = get_object_or_404(User, pk=pk)
-
-    # 1. Tidak boleh menonaktifkan akun sendiri
-    if target_user.pk == request.user.pk:
-        return HttpResponseForbidden(
-            "Anda tidak dapat menonaktifkan akun sendiri."
+    with transaction.atomic():
+        target_user = get_object_or_404(
+            User.objects.select_for_update(), pk=pk
         )
 
-    # 2. Product Owner (dan non-superuser) dilarang mengaktifkan/menonaktifkan superuser
-    if target_user.is_superuser and not request.user.is_superuser:
-        return HttpResponseForbidden(
-            "Product Owner tidak memiliki izin untuk mengaktifkan atau menonaktifkan superuser."
-        )
-
-    # 3. Proteksi superuser aktif terakhir (mencegah lockout administratif)
-    if target_user.is_superuser and target_user.is_active:
-        active_superusers = User.objects.filter(
-            is_superuser=True, is_active=True
-        ).count()
-        if active_superusers <= 1:
+        # 1. Product Owner (dan non-superuser) dilarang mengaktifkan/menonaktifkan superuser
+        if target_user.is_superuser and not request.user.is_superuser:
             return HttpResponseForbidden(
-                "Tidak dapat menonaktifkan superuser aktif terakhir untuk mencegah lockout administratif."
+                "Product Owner tidak memiliki izin untuk mengaktifkan atau menonaktifkan superuser."
             )
 
-    target_user.is_active = not target_user.is_active
-    target_user.save(update_fields=["is_active"])
+        # 2. Proteksi superuser aktif terakhir (mencegah lockout administratif & race condition)
+        if target_user.is_superuser and target_user.is_active:
+            active_superusers = (
+                User.objects.select_for_update()
+                .filter(is_superuser=True, is_active=True)
+            )
+            if active_superusers.count() <= 1:
+                return HttpResponseForbidden(
+                    "Tidak dapat menonaktifkan superuser aktif terakhir untuk mencegah lockout administratif."
+                )
+
+        # 3. Tidak boleh menonaktifkan akun sendiri
+        if target_user.pk == request.user.pk:
+            return HttpResponseForbidden(
+                "Anda tidak dapat menonaktifkan akun sendiri."
+            )
+
+        target_user.is_active = not target_user.is_active
+        target_user.save(update_fields=["is_active"])
 
     status = "diaktifkan" if target_user.is_active else "dinonaktifkan"
     messages.success(

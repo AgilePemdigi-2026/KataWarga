@@ -7,16 +7,24 @@ Cakupan:
 - Manajemen antar Product Owner;
 - Proteksi mutlak superuser terhadap modifikasi atau penonaktifan oleh non-superuser (P0 bug fix);
 - Larangan modifikasi diri sendiri (anti self-deactivation & anti self-role tampering);
-- Kemampuan administratif Superuser dan proteksi superuser aktif terakhir (anti-lockout);
-- Penolakan manipulasi parameter (is_superuser, is_staff);
-- Penegakan metode HTTP POST (penolakan GET);
+- Kemampuan administratif Superuser dan proteksi superuser aktif terakhir (anti-lockout)
+  yang diverifikasi langsung tanpa bercampur aturan self-deactivation;
+- Ketahanan terhadap manipulasi parameter (is_superuser, is_staff);
+- Penolakan metode HTTP GET pada endpoint state-changing;
 - Penanganan ID pengguna tidak ditemukan (404);
 - Validasi tampilan UI (indikator proteksi dan penyembunyian kontrol aksi);
-- Regresi khusus smoke test kw_smoke_test01.
+- Regresi khusus smoke test kw_smoke_test01 (dengan default role TIM_DEVELOPER);
+- Penolakan staf non-PO yang mencoba menyimulasikan Product Owner pada mode DEBUG;
+- Penegakan proteksi CSRF menggunakan enforce_csrf_checks=True;
+- Audit dan proteksi jalur Django Admin (CustomUserAdmin).
 """
 import pytest
+from django.contrib.admin.sites import AdminSite
+from django.core.exceptions import PermissionDenied
+from django.test import Client, RequestFactory
 from django.urls import reverse
 
+from accounts.admin import CustomUserAdmin
 from accounts.models import User
 
 pytestmark = pytest.mark.django_db
@@ -53,7 +61,10 @@ def rbac_users():
         "re": _create_user("re_analyst", User.RolePengguna.REQUIREMENTS_ENGINEER),
         "analyst": _create_user("analyst_qa", User.RolePengguna.ANALYST),
         "dev": _create_user("dev_engineer", User.RolePengguna.TIM_DEVELOPER),
-        "smoke": _create_user("kw_smoke_test01", User.RolePengguna.REQUIREMENTS_ENGINEER),
+        "target_ordinary": _create_user("target_other_user", User.RolePengguna.TIM_DEVELOPER),
+        "smoke": _create_user("kw_smoke_test01", User.RolePengguna.TIM_DEVELOPER),
+        "smoke_re": _create_user("kw_smoke_test02", User.RolePengguna.REQUIREMENTS_ENGINEER),
+        "staff_re": _create_user("staff_non_po", User.RolePengguna.REQUIREMENTS_ENGINEER, is_staff=True),
     }
 
 
@@ -70,6 +81,7 @@ def rbac_users():
         ("analyst", 403),
         ("dev", 403),
         ("smoke", 403),
+        ("smoke_re", 403),
     ],
 )
 def test_access_kelola_role_matrix(client, rbac_users, role_key, expected_status):
@@ -91,11 +103,18 @@ def test_anonymous_redirected_from_kelola_role(client):
 # 2. Penolakan Peran Non-Pengelola (RE, Analyst, Dev) pada POST
 # ===========================================================================
 
-@pytest.mark.parametrize("role_key", ["re", "analyst", "dev", "smoke"])
+@pytest.mark.parametrize("role_key", ["re", "analyst", "dev", "smoke", "smoke_re"])
 def test_unauthorized_roles_forbidden_from_toggle_active(client, rbac_users, role_key):
-    """Peran lain dilarang menonaktifkan akun apapun (HTTP 403)."""
-    target = rbac_users["dev"]
-    client.force_login(rbac_users[role_key])
+    """
+    Peran lain dilarang menonaktifkan akun pengguna lain (HTTP 403).
+    Target adalah akun pihak ketiga (bukan akun aktor) untuk membuktikan penolakan
+    terjadi murni karena hak akses RBAC, bukan karena aturan larangan mengubah akun sendiri.
+    """
+    target = rbac_users["target_ordinary"]
+    actor = rbac_users[role_key]
+    assert actor.pk != target.pk
+
+    client.force_login(actor)
 
     response = client.post(reverse("accounts:toggle_active", kwargs={"pk": target.pk}))
     assert response.status_code == 403
@@ -104,11 +123,17 @@ def test_unauthorized_roles_forbidden_from_toggle_active(client, rbac_users, rol
     assert target.is_active is True
 
 
-@pytest.mark.parametrize("role_key", ["re", "analyst", "dev", "smoke"])
+@pytest.mark.parametrize("role_key", ["re", "analyst", "dev", "smoke", "smoke_re"])
 def test_unauthorized_roles_forbidden_from_ubah_role(client, rbac_users, role_key):
-    """Peran lain dilarang mengubah peran pengguna (HTTP 403)."""
-    target = rbac_users["dev"]
-    client.force_login(rbac_users[role_key])
+    """
+    Peran lain dilarang mengubah peran pengguna lain (HTTP 403).
+    Target adalah akun pihak ketiga (bukan akun aktor).
+    """
+    target = rbac_users["target_ordinary"]
+    actor = rbac_users[role_key]
+    assert actor.pk != target.pk
+
+    client.force_login(actor)
 
     response = client.post(
         reverse("accounts:ubah_role", kwargs={"pk": target.pk}),
@@ -312,37 +337,55 @@ def test_superuser_can_deactivate_another_superuser_if_multiple_exist(client, rb
 
 
 def test_last_active_superuser_cannot_be_deactivated(client, rbac_users):
-    """Superuser aktif terakhir tidak dapat dinonaktifkan (anti-lockout)."""
-    # Nonaktifkan admin2 terlebih dahulu sehingga hanya admin yang aktif
+    """
+    Superuser aktif terakhir tidak dapat dinonaktifkan (anti-lockout).
+    Guard proteksi anti-lockout dievaluasi sebelum aturan self-deactivation,
+    sehingga penolakan terjadi secara spesifik karena mencegah hilangnya superuser aktif terakhir.
+    """
+    admin1 = rbac_users["admin"]
     admin2 = rbac_users["admin2"]
+
+    # Pastikan admin2 inaktif sehingga admin1 adalah satu-satunya superuser aktif di database
     admin2.is_active = False
     admin2.save(update_fields=["is_active"])
-
-    admin = rbac_users["admin"]
-    assert User.objects.filter(is_superuser=True, is_active=True).count() == 1
-
-    # Login sebagai admin dan coba nonaktifkan diri sendiri -> 403
-    client.force_login(admin)
-    resp_self = client.post(reverse("accounts:toggle_active", kwargs={"pk": admin.pk}))
-    assert resp_self.status_code == 403
-    admin.refresh_from_db()
-    assert admin.is_active is True
-
-    # Jika admin2 (yang tidak aktif) mencoba menonaktifkan admin1 -> 403
-    admin2.is_active = True
-    admin2.is_superuser = True
-    # Buat akun superuser ketiga yang dinonaktifkan untuk menguji penolakan guard
-    admin.is_active = True
-    admin.save()
-    User.objects.filter(is_superuser=True).exclude(pk=admin.pk).update(is_active=False)
+    admin1.is_active = True
+    admin1.save(update_fields=["is_active"])
 
     assert User.objects.filter(is_superuser=True, is_active=True).count() == 1
 
-    # Coba nonaktifkan superuser terakhir melalui panggilan POST langsung
-    resp = client.post(reverse("accounts:toggle_active", kwargs={"pk": admin.pk}))
+    client.force_login(admin1)
+    resp = client.post(reverse("accounts:toggle_active", kwargs={"pk": admin1.pk}))
+
     assert resp.status_code == 403
-    admin.refresh_from_db()
-    assert admin.is_active is True
+    assert "superuser aktif terakhir" in resp.content.decode("utf-8")
+
+    admin1.refresh_from_db()
+    assert admin1.is_active is True
+
+
+def test_superuser_cannot_deactivate_themselves_when_multiple_exist(client, rbac_users):
+    """
+    Ketika ada beberapa superuser aktif, superuser tetap dilarang menonaktifkan akunnya sendiri
+    berdasarkan aturan self-deactivation.
+    """
+    admin1 = rbac_users["admin"]
+    admin2 = rbac_users["admin2"]
+
+    admin1.is_active = True
+    admin1.save(update_fields=["is_active"])
+    admin2.is_active = True
+    admin2.save(update_fields=["is_active"])
+
+    assert User.objects.filter(is_superuser=True, is_active=True).count() >= 2
+
+    client.force_login(admin1)
+    resp = client.post(reverse("accounts:toggle_active", kwargs={"pk": admin1.pk}))
+
+    assert resp.status_code == 403
+    assert "tidak dapat menonaktifkan akun sendiri" in resp.content.decode("utf-8")
+
+    admin1.refresh_from_db()
+    assert admin1.is_active is True
 
 
 # ===========================================================================
@@ -350,7 +393,10 @@ def test_last_active_superuser_cannot_be_deactivated(client, rbac_users):
 # ===========================================================================
 
 def test_parameter_tampering_cannot_grant_superuser_or_staff(client, rbac_users):
-    """Manipulasi parameter POST (is_superuser, is_staff) tidak berpengaruh ke target."""
+    """
+    Manipulasi parameter POST (is_superuser, is_staff) tidak berpengaruh ke target.
+    Key diuji tanpa duplikasi key dalam dictionary.
+    """
     dev = rbac_users["dev"]
     client.force_login(rbac_users["po"])
 
@@ -360,7 +406,6 @@ def test_parameter_tampering_cannot_grant_superuser_or_staff(client, rbac_users)
             "role": User.RolePengguna.PRODUCT_OWNER,
             "is_superuser": "True",
             "is_staff": "True",
-            "is_superuser": "1",
         },
         follow=True,
     )
@@ -413,7 +458,10 @@ def test_nonexistent_user_returns_404(client, rbac_users):
     resp_toggle = client.post(reverse("accounts:toggle_active", kwargs={"pk": non_existent_pk}))
     assert resp_toggle.status_code == 404
 
-    resp_ubah = client.post(reverse("accounts:ubah_role", kwargs={"pk": non_existent_pk}), {"role": User.RolePengguna.ANALYST})
+    resp_ubah = client.post(
+        reverse("accounts:ubah_role", kwargs={"pk": non_existent_pk}),
+        {"role": User.RolePengguna.ANALYST},
+    )
     assert resp_ubah.status_code == 404
 
 
@@ -463,10 +511,12 @@ def test_ui_protection_for_po_viewer(client, rbac_users):
 def test_kw_smoke_test01_cannot_deactivate_superuser(client, rbac_users):
     """
     Skenario eksplisit Sprint 3 Smoke Test:
-    Akun reguler kw_smoke_test01 mencoba menonaktifkan superuser admin.
+    Akun reguler kw_smoke_test01 (dengan role default TIM_DEVELOPER)
+    mencoba menonaktifkan superuser admin.
     Harus ditolak (403 Forbidden) dan status superuser tidak berubah!
     """
     smoke_user = rbac_users["smoke"]
+    assert smoke_user.role == User.RolePengguna.TIM_DEVELOPER
     admin_user = rbac_users["admin"]
 
     client.force_login(smoke_user)
@@ -475,3 +525,148 @@ def test_kw_smoke_test01_cannot_deactivate_superuser(client, rbac_users):
     assert resp.status_code == 403
     admin_user.refresh_from_db()
     assert admin_user.is_active is True
+
+
+# ===========================================================================
+# 11. Staf Non-PO Tidak Dapat Menembus RBAC via Simulasi Role (Review #1 & #3)
+# ===========================================================================
+
+def test_staff_non_po_simulating_po_cannot_manage_accounts(client, rbac_users, settings):
+    """
+    Staf yang memiliki peran asli non-PO (misal: REQUIREMENTS_ENGINEER) pada mode DEBUG
+    tidak dapat memperoleh hak kelola role meskipun menyimulasikan PRODUCT_OWNER.
+    Kewenangan administratif wajib mengacu pada role database asli!
+    """
+    settings.DEBUG = True
+    staff_user = rbac_users["staff_re"]
+    assert staff_user.role == User.RolePengguna.REQUIREMENTS_ENGINEER
+    assert staff_user.is_staff is True
+
+    target = rbac_users["target_ordinary"]
+
+    client.force_login(staff_user)
+
+    # Set simulasi role PRODUCT_OWNER di session
+    session = client.session
+    session["acting_role"] = User.RolePengguna.PRODUCT_OWNER
+    session.save()
+
+    # 1. Halaman kelola role ditolak (403 Forbidden)
+    resp_get = client.get(reverse("accounts:kelola_role"))
+    assert resp_get.status_code == 403
+
+    # 2. Aksi toggle_active ditolak (403 Forbidden)
+    resp_toggle = client.post(reverse("accounts:toggle_active", kwargs={"pk": target.pk}))
+    assert resp_toggle.status_code == 403
+    target.refresh_from_db()
+    assert target.is_active is True
+
+    # 3. Aksi ubah_role ditolak (403 Forbidden)
+    resp_ubah = client.post(
+        reverse("accounts:ubah_role", kwargs={"pk": target.pk}),
+        {"role": User.RolePengguna.ANALYST},
+    )
+    assert resp_ubah.status_code == 403
+    target.refresh_from_db()
+    assert target.role == User.RolePengguna.TIM_DEVELOPER
+
+    # 4. Context processor overview memastikan can_manage_roles bernilai False dan menu roles tidak ada
+    overview_resp = client.get(reverse("dashboard:overview"))
+    assert overview_resp.status_code == 200
+    assert overview_resp.context["can_manage_roles"] is False
+    sidebar_keys = [item["key"] for item in overview_resp.context["sidebar_items"]]
+    assert "roles" not in sidebar_keys
+
+
+# ===========================================================================
+# 12. Pengujian Penegakan CSRF (Review #3)
+# ===========================================================================
+
+def test_csrf_protection_on_account_management_endpoints(rbac_users):
+    """
+    Memverifikasi penegakan proteksi CSRF pada endpoint kelola role menggunakan
+    Client(enforce_csrf_checks=True).
+    Permintaan POST tanpa token CSRF wajib ditolak dengan HTTP 403.
+    """
+    csrf_client = Client(enforce_csrf_checks=True)
+    po = rbac_users["po"]
+    target = rbac_users["target_ordinary"]
+
+    csrf_client.force_login(po)
+
+    # POST tanpa token CSRF -> Ditolak (403 CSRF Failed)
+    resp_no_csrf_toggle = csrf_client.post(reverse("accounts:toggle_active", kwargs={"pk": target.pk}))
+    assert resp_no_csrf_toggle.status_code == 403
+
+    resp_no_csrf_ubah = csrf_client.post(
+        reverse("accounts:ubah_role", kwargs={"pk": target.pk}),
+        {"role": User.RolePengguna.ANALYST},
+    )
+    assert resp_no_csrf_ubah.status_code == 403
+
+    # Dapatkan token CSRF dari cookie setelah GET
+    get_resp = csrf_client.get(reverse("accounts:kelola_role"))
+    assert get_resp.status_code == 200
+    csrf_token = csrf_client.cookies["csrftoken"].value
+
+    # POST dengan token CSRF yang valid -> Berhasil (302 Redirect)
+    resp_with_csrf = csrf_client.post(
+        reverse("accounts:toggle_active", kwargs={"pk": target.pk}),
+        {"csrfmiddlewaretoken": csrf_token},
+        HTTP_X_CSRFTOKEN=csrf_token,
+    )
+    assert resp_with_csrf.status_code == 302
+    target.refresh_from_db()
+    assert target.is_active is False
+
+
+# ===========================================================================
+# 13. Audit Jalur Django Admin (Review #4)
+# ===========================================================================
+
+def test_django_admin_superuser_protection(rbac_users):
+    """
+    Memverifikasi bahwa CustomUserAdmin melindungi akun superuser dari:
+    - Modifikasi oleh staf non-superuser;
+    - Penghapusan oleh staf non-superuser;
+    - Penghapusan atau penonaktifan superuser aktif terakhir oleh siapapun.
+    """
+    admin_site = AdminSite()
+    custom_admin = CustomUserAdmin(User, admin_site)
+    rf = RequestFactory()
+
+    admin_user = rbac_users["admin"]
+    admin2_user = rbac_users["admin2"]
+    staff_user = rbac_users["staff_re"]  # non-superuser dengan is_staff=True
+
+    # 1. Non-superuser dilarang memiliki has_change_permission untuk superuser
+    req_staff = rf.get("/admin/accounts/user/")
+    req_staff.user = staff_user
+    assert custom_admin.has_change_permission(req_staff, obj=admin_user) is False
+
+    # Superuser memiliki has_change_permission untuk superuser lain
+    req_admin = rf.get("/admin/accounts/user/")
+    req_admin.user = admin_user
+    assert custom_admin.has_change_permission(req_admin, obj=admin2_user) is True
+
+    # 2. Non-superuser dilarang memiliki has_delete_permission untuk superuser
+    assert custom_admin.has_delete_permission(req_staff, obj=admin_user) is False
+
+    # 3. Superuser tidak boleh menghapus superuser aktif terakhir
+    # Set admin2 inaktif agar admin_user menjadi superuser aktif terakhir
+    admin2_user.is_active = False
+    admin2_user.save(update_fields=["is_active"])
+    assert User.objects.filter(is_superuser=True, is_active=True).count() == 1
+    assert custom_admin.has_delete_permission(req_admin, obj=admin_user) is False
+
+    # 4. save_model menolak jika non-superuser mencoba menyimpan superuser
+    with pytest.raises(PermissionDenied, match="Hanya superuser"):
+        custom_admin.save_model(req_staff, admin_user, None, change=True)
+
+    # 5. delete_model menolak jika non-superuser mencoba menghapus superuser
+    with pytest.raises(PermissionDenied, match="Hanya superuser"):
+        custom_admin.delete_model(req_staff, admin_user)
+
+    # 6. delete_model menolak penghapusan superuser aktif terakhir
+    with pytest.raises(PermissionDenied, match="superuse"):
+        custom_admin.delete_model(req_admin, admin_user)
