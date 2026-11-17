@@ -343,7 +343,14 @@
             var form = event.target;
             if (!(form instanceof HTMLFormElement)) return;
 
-            var confirmMessage = form.dataset.confirm;
+
+            var confirmationSource = event.submitter ||
+                form.querySelector('button[type="submit"], input[type="submit"]');
+
+            var confirmMessage =
+                (confirmationSource && confirmationSource.dataset.confirm) ||
+                form.dataset.confirm;
+
             if (confirmMessage && !window.confirm(confirmMessage)) {
                 event.preventDefault();
                 return;
@@ -566,10 +573,23 @@
                     var tooltip = document.createElement("div");
                     tooltip.className = "kw-chart-tooltip";
                     tooltip.hidden = true;
-                    tooltip.innerHTML = "<strong>" + labels[index] + "</strong><br>" +
-                        series.map(function (entry) {
-                            return entry.name + ": " + entry.values[index] + (entry.unit ? " " + entry.unit : "");
-                        }).join("<br>");
+
+                    var heading = document.createElement("strong");
+                    heading.textContent = String(labels[index]);
+                    tooltip.appendChild(heading);
+
+                    series.forEach(function (entry) {
+                        tooltip.appendChild(document.createElement("br"));
+
+                        var text = document.createElement("span");
+                        text.textContent =
+                            String(entry.name) + ": " +
+                            String(entry.values[index]) +
+                            (entry.unit ? " " + String(entry.unit) : "");
+
+                        tooltip.appendChild(text);
+                    });
+
 
                     function showTooltip() {
                         tooltip.hidden = false;
