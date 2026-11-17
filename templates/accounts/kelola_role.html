@@ -1,205 +1,465 @@
-{% extends "base.html" %}
 
-{% block title %}Kelola Akses Role | KataWarga{% endblock %}
+{% extends 'base.html' %}
+
+{% block title %}Kelola Akses Role — KataWarga{% endblock %}
 
 {% block content %}
-<div class="max-w-7xl mx-auto space-y-6">
+<div class="kw-stack" style="gap:20px">
 
-    <!-- Header -->
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <!-- HEADER -->
+    <header class="kw-page-head" style="margin-bottom:0">
         <div>
-            <p class="text-xs font-semibold uppercase tracking-[0.2em] text-indigo-400">Administrasi</p>
-            <h1 class="text-2xl font-bold text-white mt-1">Kelola Akses Role Pengguna</h1>
-            <p class="text-sm text-gray-400 mt-1">
-                Atur peran (Role Based Access Control) dan status aktivasi akun KataWarga (§4).
+            <p class="kw-eyebrow">Administrasi</p>
+            <h1 class="kw-title">Kelola Akses Role Pengguna</h1>
+            <p class="kw-subtitle">
+                Atur peran dan status aktivasi akun KataWarga.
             </p>
         </div>
-        <span class="self-start px-3 py-1.5 rounded-full bg-gray-800 border border-gray-700 text-xs text-gray-300">
-            Peran efektif Anda: <strong class="text-indigo-300">{{ acting_role_label }}</strong>
-        </span>
-    </div>
 
+        <div class="kw-actions">
+            <span class="kw-chip">
+                <svg aria-hidden="true">
+                    <use href="#icon-users"></use>
+                </svg>
+                {{ users|length }} akun terdaftar
+            </span>
+        </div>
+    </header>
+
+    <!-- SIMULASI ROLE KHUSUS DEVELOPMENT -->
     {% if can_simulate_role %}
-    <!-- Panel Simulasi Peran Dev Mode -->
-    <div class="bg-gray-800/80 border border-indigo-900/60 rounded-xl p-5 shadow">
-        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+    <section class="kw-card">
+
+        <div class="kw-card__head">
             <div>
-                <span class="text-xs font-semibold uppercase tracking-wider text-indigo-400">Pengujian Alur Peran (Dev Mode)</span>
-                <h3 class="text-base font-medium text-white mt-0.5">Ganti Peran Aktif Anda Saat Ini</h3>
-                <p class="text-xs text-gray-400">
-                    Pilih peran untuk menguji sidebar dan izin tombol. Peran asli di database
-                    <strong class="text-gray-300">tidak diubah</strong>.
+                <h2 class="kw-card__title">
+                    Ganti Peran Aktif (Dev Mode)
+                </h2>
+                <p class="kw-card__desc">
+                    Coba tampilan dan navigasi setiap peran
+                    tanpa mengubah role asli di database.
                 </p>
-                {% if is_simulating_role %}
-                <p class="text-[11px] text-amber-300 mt-2">
-                    Sedang mensimulasikan <strong>{{ effective_role_label }}</strong>.
-                    Peran asli: {{ original_role_label }}.
-                </p>
-                {% endif %}
             </div>
 
-            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                <form method="post" action="{% url 'accounts:switch_role' %}" class="flex items-center gap-2">
+            {% if is_simulating_role %}
+            <span class="kw-badge kw-badge--warning">
+                <span class="kw-status-dot"></span>
+                Simulasi aktif
+            </span>
+            {% else %}
+            <span class="kw-badge kw-badge--neutral">
+                Peran asli
+            </span>
+            {% endif %}
+        </div>
+
+        <div class="kw-card__body">
+
+            {% if is_simulating_role %}
+            <div class="kw-banner kw-banner--warning" style="margin-bottom:14px">
+                <svg aria-hidden="true">
+                    <use href="#icon-alert"></use>
+                </svg>
+
+                <p style="margin:0">
+                    Sedang menggunakan tampilan
+                    <strong>{{ effective_role_label }}</strong>.
+                    Peran asli: {{ original_role_label }}.
+                </p>
+            </div>
+            {% endif %}
+
+            <div class="kw-inline" style="align-items:flex-end">
+
+                <form
+                    method="post"
+                    action="{% url 'accounts:switch_role' %}"
+                    class="kw-inline"
+                    style="align-items:flex-end"
+                >
                     {% csrf_token %}
-                    <select name="acting_role" class="bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
-                        {% for r_code, r_label in roles %}
-                        <option value="{{ r_code }}" {% if acting_role == r_code %}selected{% endif %}>
-                            {{ r_label }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                    <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold transition whitespace-nowrap">
+
+                    <div>
+                        <label class="kw-label" for="acting_role">
+                            Pilih peran
+                        </label>
+
+                        <select
+                            class="kw-select"
+                            id="acting_role"
+                            name="acting_role"
+                        >
+                            {% for r_code, r_label in roles %}
+                            <option
+                                value="{{ r_code }}"
+                                {% if acting_role == r_code %}selected{% endif %}
+                            >
+                                {{ r_label }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <button
+                        class="kw-btn kw-btn--primary kw-btn--sm"
+                        type="submit"
+                    >
                         Aktifkan Peran
                     </button>
                 </form>
 
                 {% if is_simulating_role %}
-                <form method="post" action="{% url 'accounts:switch_role' %}">
+                <form
+                    method="post"
+                    action="{% url 'accounts:switch_role' %}"
+                >
                     {% csrf_token %}
-                    <input type="hidden" name="acting_role" value="">
-                    <button type="submit" class="w-full px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-xs font-semibold transition whitespace-nowrap">
-                        Kembali ke {{ original_role_label }}
+
+                    <input
+                        type="hidden"
+                        name="acting_role"
+                        value=""
+                    >
+
+                    <button
+                        class="kw-btn kw-btn--secondary kw-btn--sm"
+                        type="submit"
+                    >
+                        Kembali ke Peran Asli
                     </button>
                 </form>
                 {% endif %}
+
             </div>
         </div>
-    </div>
+    </section>
     {% endif %}
 
-    <!-- Tabel Pengguna & Role -->
-    <div class="bg-gray-800 border border-gray-700 rounded-xl overflow-hidden shadow">
-        <div class="p-5 border-b border-gray-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-            <h2 class="text-base font-semibold text-white">Daftar Pengguna Terdaftar</h2>
-            <span class="text-xs text-gray-400">{{ users|length }} akun terdaftar</span>
+    <!-- DAFTAR PENGGUNA -->
+    {% if can_manage_roles %}
+    <section class="kw-card">
+
+        <div class="kw-card__head">
+            <h2 class="kw-card__title">
+                Daftar Pengguna Terdaftar
+            </h2>
+
+            <span class="kw-badge kw-badge--neutral">
+                {{ users|length }} akun
+            </span>
         </div>
 
-        <div class="overflow-x-auto">
-            <table class="w-full text-left border-collapse">
-                <thead>
-                    <tr class="bg-gray-900/60 text-xs text-gray-400 border-b border-gray-700">
-                        <th class="py-3 px-5 font-medium">Username</th>
-                        <th class="py-3 px-5 font-medium">Email</th>
-                        <th class="py-3 px-5 font-medium">Peran Saat Ini</th>
-                        <th class="py-3 px-5 font-medium">Status Akun</th>
-                        <th class="py-3 px-5 font-medium">Ubah Peran</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-700/60 text-sm">
-                    {% for u in users %}
-                    <tr class="hover:bg-gray-700/30 transition">
-                        <td class="py-3.5 px-5 font-medium text-white">
-                            <div class="flex items-center space-x-2">
-                                <span>👤</span>
-                                <span>{{ u.username }}</span>
-                                {% if u.is_superuser %}
-                                <span class="px-1.5 py-0.5 bg-red-900/60 text-red-300 border border-red-700 text-[10px] rounded font-semibold" title="Akun superuser dengan proteksi RBAC khusus">Superuser (Dilindungi)</span>
-                                {% elif u.is_staff %}
-                                <span class="px-1.5 py-0.5 bg-indigo-900/60 text-indigo-300 border border-indigo-700 text-[10px] rounded">Staff</span>
-                                {% endif %}
-                                {% if u.pk == request.user.pk %}
-                                <span class="px-1.5 py-0.5 bg-gray-700 text-gray-300 text-[10px] rounded">Akun Anda</span>
-                                {% endif %}
-                            </div>
-                        </td>
-                        <td class="py-3.5 px-5 text-gray-300 text-xs">
-                            {{ u.email|default:"-" }}
-                        </td>
-                        <td class="py-3.5 px-5">
-                            <span class="px-2.5 py-1 rounded-full text-xs font-semibold
-                                {% if u.role == 'REQUIREMENTS_ENGINEER' %}bg-blue-900/50 text-blue-300 border border-blue-700
-                                {% elif u.role == 'ANALYST' %}bg-yellow-900/50 text-yellow-300 border border-yellow-700
-                                {% elif u.role == 'PRODUCT_OWNER' %}bg-green-900/50 text-green-300 border border-green-700
-                                {% elif u.role == 'TIM_DEVELOPER' %}bg-purple-900/50 text-purple-300 border border-purple-700
-                                {% else %}bg-gray-700 text-gray-300{% endif %}">
-                                {{ u.get_role_display }}
-                            </span>
-                        </td>
-                        <td class="py-3.5 px-5">
-                            <div class="flex items-center gap-2">
-                                {% if u.is_active %}
-                                <span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-green-900/50 text-green-300 border border-green-700">Aktif</span>
-                                {% else %}
-                                <span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-900/50 text-amber-300 border border-amber-700">Menunggu Aktivasi</span>
-                                {% endif %}
+        <div class="kw-card__body" style="padding:0">
+            <div class="kw-table-wrap">
+
+                <table class="kw-table">
+
+                    <thead>
+                        <tr>
+                            <th>Pengguna</th>
+                            <th>Peran saat ini</th>
+                            <th>Ubah peran</th>
+                            <th>Aktivasi</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+
+                        {% for u in users %}
+                        <tr>
+
+                            <!-- PENGGUNA -->
+                            <td>
+                                <div class="kw-inline" style="gap:8px">
+
+                                    <span
+                                        class="kw-avatar kw-avatar--sm"
+                                        aria-hidden="true"
+                                    >
+                                        {{ u.username|slice:":1"|upper }}
+                                    </span>
+
+                                    <div style="min-width:0">
+
+                                        <div class="kw-inline" style="gap:5px">
+
+                                            <strong class="kw-text">
+                                                {{ u.username }}
+                                            </strong>
+
+                                            {% if u.is_superuser %}
+                                            <span class="kw-badge kw-badge--danger">
+                                                Superuser (Dilindungi)
+                                            </span>
+
+                                            {% elif u.is_staff %}
+                                            <span class="kw-badge kw-badge--accent">
+                                                Staff
+                                            </span>
+                                            {% endif %}
+
+                                            {% if u.pk == request.user.pk %}
+                                            <span class="kw-badge kw-badge--neutral">
+                                                Akun Anda
+                                            </span>
+                                            {% endif %}
+
+                                        </div>
+
+                                        <p class="kw-help" style="margin:1px 0 0">
+                                            {{ u.email|default:"Email belum diisi" }}
+                                        </p>
+
+                                    </div>
+                                </div>
+                            </td>
+
+                            <!-- ROLE SAAT INI -->
+                            <td>
+                                <span class="kw-badge
+                                    {% if u.role == 'REQUIREMENTS_ENGINEER' %}
+                                        kw-badge--info
+                                    {% elif u.role == 'ANALYST' %}
+                                        kw-badge--warning
+                                    {% elif u.role == 'PRODUCT_OWNER' %}
+                                        kw-badge--success
+                                    {% elif u.role == 'TIM_DEVELOPER' %}
+                                        kw-badge--accent
+                                    {% else %}
+                                        kw-badge--neutral
+                                    {% endif %}">
+                                    {{ u.get_role_display }}
+                                </span>
+                            </td>
+
+                            <!-- UBAH PERAN -->
+                            <td>
 
                                 {% if u.pk == request.user.pk %}
-                                    {# Akun sendiri tidak dapat diubah statusnya #}
-                                {% elif u.is_superuser and not is_superuser %}
-                                    {# Product Owner dilarang mengubah status superuser #}
-                                {% elif u.is_superuser and is_superuser and u.is_active and active_superusers_count <= 1 %}
-                                    <button type="button" disabled
-                                            class="px-2.5 py-1 rounded-lg text-[11px] font-medium border border-gray-700 bg-gray-800 text-gray-500 cursor-not-allowed opacity-60"
-                                            title="Superuser aktif terakhir tidak dapat dinonaktifkan">
+
+                                <span class="kw-help">
+                                    Tidak dapat mengubah peran sendiri
+                                </span>
+
+                                {% elif u.is_superuser and not request.user.is_superuser %}
+
+                                <span class="kw-help">
+                                    Superuser (Dilindungi)
+                                </span>
+
+                                {% else %}
+
+                                <form
+                                    method="post"
+                                    action="{% url 'accounts:ubah_role' u.pk %}"
+                                    class="kw-inline-form"
+                                >
+                                    {% csrf_token %}
+
+                                    <label
+                                        class="kw-sr-only"
+                                        for="role-{{ u.pk }}"
+                                    >
+                                        Peran {{ u.username }}
+                                    </label>
+
+                                    <select
+                                        class="kw-select"
+                                        id="role-{{ u.pk }}"
+                                        name="role"
+                                    >
+                                        {% for r_code, r_label in roles %}
+                                        <option
+                                            value="{{ r_code }}"
+                                            {% if u.role == r_code %}selected{% endif %}
+                                        >
+                                            {{ r_label }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+
+                                    <button
+                                        class="kw-btn kw-btn--secondary kw-btn--xs"
+                                        type="submit"
+                                    >
+                                        Simpan
+                                    </button>
+
+                                </form>
+
+                                {% endif %}
+                            </td>
+
+                            <!-- STATUS DAN AKTIVASI -->
+                            <td>
+
+                                <div class="kw-inline" style="gap:8px">
+
+                                    {% if u.is_active %}
+                                    <span class="kw-badge kw-badge--success">
+                                        Aktif
+                                    </span>
+                                    {% else %}
+                                    <span class="kw-badge kw-badge--warning">
+                                        Menunggu Aktivasi
+                                    </span>
+                                    {% endif %}
+
+                                    {% if u.pk == request.user.pk %}
+
+                                    <span class="kw-help">
+                                        Akun Anda
+                                    </span>
+
+                                    {% elif u.is_superuser and not request.user.is_superuser %}
+
+                                    <span class="kw-help">
+                                        Superuser (Dilindungi)
+                                    </span>
+
+                                    {% elif u.is_superuser and u.is_active and active_superusers_count <= 1 %}
+
+                                    <button
+                                        type="button"
+                                        class="kw-btn kw-btn--secondary kw-btn--xs"
+                                        disabled
+                                        title="Superuser aktif terakhir tidak dapat dinonaktifkan"
+                                    >
                                         Nonaktifkan
                                     </button>
-                                {% else %}
-                                <form method="post" action="{% url 'accounts:toggle_active' u.pk %}">
-                                    {% csrf_token %}
-                                    <button type="submit"
-                                            class="px-2.5 py-1 rounded-lg text-[11px] font-medium border transition
-                                            {% if u.is_active %}bg-gray-900 border-gray-700 text-gray-300 hover:bg-red-950 hover:text-red-300 hover:border-red-800{% else %}bg-green-900/60 border-green-800 text-green-200 hover:bg-green-800{% endif %}">
-                                        {% if u.is_active %}Nonaktifkan{% else %}Aktifkan{% endif %}
-                                    </button>
-                                </form>
-                                {% endif %}
-                            </div>
-                        </td>
-                        <td class="py-3.5 px-5">
-                            {% if u.pk == request.user.pk %}
-                                <span class="text-xs text-gray-500 italic">Tidak dapat mengubah peran sendiri</span>
-                            {% elif u.is_superuser and not is_superuser %}
-                                <span class="px-2.5 py-1 rounded-lg text-xs bg-gray-900/80 border border-gray-700 text-gray-400">Superuser (Dilindungi)</span>
-                            {% else %}
-                            <form method="post" action="{% url 'accounts:ubah_role' u.pk %}" class="flex items-center gap-2">
-                                {% csrf_token %}
-                                <select name="role" class="bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-indigo-500">
-                                    {% for r_code, r_label in roles %}
-                                    <option value="{{ r_code }}" {% if u.role == r_code %}selected{% endif %}>
-                                        {{ r_label }}
-                                    </option>
-                                    {% endfor %}
-                                </select>
-                                <button type="submit" class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-xs font-medium transition">
-                                    Simpan
-                                </button>
-                            </form>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="5" class="py-8 px-5 text-center text-gray-400 text-sm">
-                            Belum ada pengguna. Jalankan <code>python manage.py seed_dummy</code> untuk mengisi pengguna contoh.
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
 
-    <!-- Informasi Matriks Hak Akses Peran (§4 Project Context) -->
-    <div class="bg-gray-800 border border-gray-700 rounded-xl p-5 shadow space-y-3">
-        <h3 class="text-sm font-semibold text-white">Matriks Hak Akses Peran (§4 Project Context)</h3>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
-            <div class="bg-gray-900/50 p-3 rounded-lg border border-gray-700/50">
-                <strong class="text-blue-300 block mb-1">Requirements Engineer</strong>
-                <p class="text-gray-400">Jalankan pipeline ekstraksi ulasan (UC-1), susun &amp; prioritaskan user story (UC-3).</p>
-            </div>
-            <div class="bg-gray-900/50 p-3 rounded-lg border border-gray-700/50">
-                <strong class="text-yellow-300 block mb-1">Analyst</strong>
-                <p class="text-gray-400">Validasi hasil ekstraksi &amp; cluster: Setujui atau Tolak sebagai quality gate (UC-2).</p>
-            </div>
-            <div class="bg-gray-900/50 p-3 rounded-lg border border-gray-700/50">
-                <strong class="text-green-300 block mb-1">Product Owner</strong>
-                <p class="text-gray-400">Satu-satunya peran yang berhak Menyetujui atau Mengabaikan User Story ke Backlog (UC-4), kelola akses role &amp; status akun.</p>
-            </div>
-            <div class="bg-gray-900/50 p-3 rounded-lg border border-gray-700/50">
-                <strong class="text-purple-300 block mb-1">Tim Developer</strong>
-                <p class="text-gray-400">Mulai kerjakan dan tandai selesai pada item Sprint Backlog (UC-6).</p>
+                                    {% else %}
+
+                                    <form
+                                        method="post"
+                                        action="{% url 'accounts:toggle_active' u.pk %}"
+                                    >
+                                        {% csrf_token %}
+
+                                        {% if u.is_active %}
+
+                                        <button
+                                            class="kw-btn kw-btn--danger kw-btn--xs"
+                                            type="submit"
+                                            data-confirm="Nonaktifkan akun {{ u.username }}?"
+                                        >
+                                            Nonaktifkan
+                                        </button>
+
+                                        {% else %}
+
+                                        <button
+                                            class="kw-btn kw-btn--success kw-btn--xs"
+                                            type="submit"
+                                        >
+                                            Aktifkan
+                                        </button>
+
+                                        {% endif %}
+                                    </form>
+
+                                    {% endif %}
+
+                                </div>
+                            </td>
+
+                        </tr>
+
+                        {% empty %}
+
+                        <tr>
+                            <td colspan="4">
+                                <div class="kw-empty kw-empty--plain">
+                                    <span class="kw-empty__icon">
+                                        <svg aria-hidden="true">
+                                            <use href="#icon-users"></use>
+                                        </svg>
+                                    </span>
+
+                                    <p class="kw-empty__title">
+                                        Belum ada pengguna
+                                    </p>
+                                </div>
+                            </td>
+                        </tr>
+
+                        {% endfor %}
+
+                    </tbody>
+                </table>
+
             </div>
         </div>
-    </div>
+
+    </section>
+    {% endif %}
+
+    <!-- HAK AKSES PERAN -->
+    <section class="kw-card">
+
+        <div class="kw-card__head">
+            <h2 class="kw-card__title">
+                Hak akses peran
+            </h2>
+        </div>
+
+        <div class="kw-card__body">
+
+            <div class="kw-grid kw-grid--4" style="gap:12px">
+
+                <div class="kw-mini-stat">
+                    <strong class="kw-text">
+                        Requirements Engineer
+                    </strong>
+
+                    <p class="kw-help" style="margin-top:8px">
+                        Menjalankan pipeline, menyusun, dan
+                        memprioritaskan User Story.
+                    </p>
+                </div>
+
+                <div class="kw-mini-stat">
+                    <strong class="kw-text">
+                        Analyst
+                    </strong>
+
+                    <p class="kw-help" style="margin-top:8px">
+                        Memvalidasi hasil ekstraksi Who-What-Why
+                        serta menyetujui atau menolak cluster.
+                    </p>
+                </div>
+
+                <div class="kw-mini-stat">
+                    <strong class="kw-text">
+                        Product Owner
+                    </strong>
+
+                    <p class="kw-help" style="margin-top:8px">
+                        Menyetujui atau mengabaikan User Story
+                        sebelum masuk Sprint Backlog.
+                    </p>
+                </div>
+
+                <div class="kw-mini-stat">
+                    <strong class="kw-text">
+                        Tim Developer
+                    </strong>
+
+                    <p class="kw-help" style="margin-top:8px">
+                        Mengerjakan item Sprint Backlog
+                        dan menandainya selesai.
+                    </p>
+                </div>
+
+            </div>
+
+            <p class="kw-help" style="margin-top:14px">
+                Pengelolaan akses role hanya dapat dilakukan
+                oleh Product Owner asli atau Superuser.
+            </p>
+
+        </div>
+    </section>
+
 </div>
 {% endblock %}

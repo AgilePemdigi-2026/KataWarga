@@ -1,0 +1,209 @@
+{% extends 'base.html' %}
+
+{% block title %}Impor CSV Ulasan — KataWarga{% endblock %}
+
+{% block content %}
+<div class="kw-stack" style="gap:20px">
+
+    <header class="kw-page-head" style="margin-bottom:0">
+        <div>
+            <p class="kw-eyebrow">Sumber data</p>
+            <h1 class="kw-title">Impor Ulasan dari CSV</h1>
+            <p class="kw-subtitle">
+                Unggah ulasan yang sudah dikumpulkan di luar Play Store. Setiap baris
+                melewati aturan filter yang sama dengan pipeline scraping, lalu siap
+                diproses oleh tombol <strong>Jalankan Ekstraksi</strong>.
+            </p>
+        </div>
+        <div class="kw-actions">
+            <a class="kw-btn kw-btn--secondary" href="{% url 'extraction:pipeline' %}">
+                <svg aria-hidden="true"><use href="#icon-arrow-left"></use></svg>
+                Kembali ke Pipeline
+            </a>
+            <a class="kw-btn kw-btn--secondary" href="{% url 'reviews:csv_template' %}">
+                <svg aria-hidden="true"><use href="#icon-download"></use></svg>
+                Unduh template CSV
+            </a>
+        </div>
+    </header>
+
+    {% if form_error %}
+    <div class="kw-banner kw-banner--danger" role="alert">
+        <svg aria-hidden="true"><use href="#icon-alert"></use></svg>
+        <p style="margin:0">{{ form_error }}</p>
+    </div>
+    {% endif %}
+
+    <div class="kw-grid kw-grid--sidebar">
+        <div class="kw-stack">
+            <section class="kw-card">
+                <div class="kw-card__head">
+                    <div>
+                        <h2 class="kw-card__title">Unggah file CSV</h2>
+                        <p class="kw-card__desc">UTF-8, pemisah koma atau titik koma, maksimal 5 MB / 2.000 baris.</p>
+                    </div>
+                    <span class="kw-badge kw-badge--accent">Requirements Engineer</span>
+                </div>
+                <div class="kw-card__body">
+                    <form
+                        method="post"
+                        action="{% url 'reviews:import_csv' %}"
+                        enctype="multipart/form-data"
+                        data-loading
+                    >
+                        {% csrf_token %}
+                        <div class="kw-file-drop" data-file-drop>
+                            <span class="kw-file-drop__icon" aria-hidden="true">
+                                <svg><use href="#icon-upload"></use></svg>
+                            </span>
+                            <label class="kw-label" for="csv-file" style="margin-top:12px;margin-bottom:3px;cursor:pointer">
+                                Pilih file CSV atau tarik ke sini
+                            </label>
+                            <p class="kw-help" style="margin:0">Hanya file .csv; data tidak dikirim sebelum tombol Impor ditekan.</p>
+                            <input
+                                class="kw-input"
+                                id="csv-file"
+                                name="file"
+                                type="file"
+                                accept=".csv,text/csv"
+                                required
+                                style="max-width:430px;margin-top:12px;background:var(--kw-surface)"
+                            >
+                            <p class="kw-file-name" data-file-name>Belum ada file dipilih</p>
+                            <p class="kw-file-meta" data-file-meta>CSV maksimal 5 MB dan 2.000 baris.</p>
+                            <p class="kw-help" data-file-error hidden style="color:var(--kw-danger-text)"></p>
+                        </div>
+
+                        <div class="kw-actions kw-mt-4" style="justify-content:flex-end">
+                            <a class="kw-btn kw-btn--ghost" href="{% url 'reviews:import_csv' %}">Bersihkan</a>
+                            <button class="kw-btn kw-btn--primary" type="submit">
+                                <svg aria-hidden="true"><use href="#icon-upload"></use></svg>
+                                Impor ulasan
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            {% if result %}
+            <section class="kw-card">
+                <div class="kw-card__head">
+                    <div>
+                        <h2 class="kw-card__title">Hasil impor</h2>
+                        <p class="kw-card__desc">{{ result.filename }}</p>
+                    </div>
+                    <span class="kw-badge {% if result.ok %}kw-badge--success{% else %}kw-badge--danger{% endif %}">
+                        {% if result.ok %}Berhasil{% else %}Dibatalkan{% endif %}
+                    </span>
+                </div>
+                <div class="kw-card__body kw-stack">
+                    <div class="kw-upload-result {% if not result.ok %}kw-upload-result--warning{% endif %}">
+                        <h3 class="kw-upload-result__title">
+                            {% if result.ok %}
+                            {{ result.diimpor }} ulasan diimpor dan siap diekstraksi.
+                            {% else %}
+                            Tidak ada data yang disimpan.
+                            {% endif %}
+                        </h3>
+                        <p class="kw-help" style="margin-top:5px">
+                            {{ result.total_baris }} baris dibaca
+                            {% if result.ok %}
+                            · {{ result.lolos }} lolos filter · {{ result.dibuang }} ditandai dibuang
+                            {% if result.duplikat %}· {{ result.duplikat }} duplikat dilewati{% endif %}
+                            {% if result.aplikasi_baru %}· {{ result.aplikasi_baru }} aplikasi baru dibuat{% endif %}
+                            {% else %}
+                            · {{ result.error_count }} baris bermasalah
+                            {% endif %}
+                        </p>
+                        {% if result.errors %}
+                        <ul>
+                            {% for error in result.errors %}<li>{{ error }}</li>{% endfor %}
+                        </ul>
+                        {% if result.error_count > result.errors|length %}
+                        <p class="kw-help">Sebagian error lain tidak ditampilkan agar halaman tetap ringkas.</p>
+                        {% endif %}
+                        {% endif %}
+                    </div>
+
+                    {% if result.ok %}
+                    <div class="kw-actions">
+                        <a class="kw-btn kw-btn--primary" href="{% url 'extraction:pipeline' %}">
+                            <svg aria-hidden="true"><use href="#icon-play"></use></svg>
+                            Buka Pipeline &amp; Jalankan Ekstraksi
+                        </a>
+                        <a class="kw-btn kw-btn--secondary" href="{% url 'reviews:import_csv' %}">Impor file lain</a>
+                    </div>
+                    {% else %}
+                    <div class="kw-actions">
+                        <a class="kw-btn kw-btn--secondary" href="{% url 'reviews:csv_template' %}">
+                            <svg aria-hidden="true"><use href="#icon-download"></use></svg>
+                            Gunakan template
+                        </a>
+                        <a class="kw-btn kw-btn--ghost" href="{% url 'reviews:import_csv' %}">Coba lagi</a>
+                    </div>
+                    {% endif %}
+                </div>
+            </section>
+            {% endif %}
+        </div>
+
+        <aside class="kw-stack">
+            <section class="kw-card">
+                <div class="kw-card__head">
+                    <h2 class="kw-card__title">Kolom yang dibutuhkan</h2>
+                </div>
+                <div class="kw-card__body">
+                    <div class="kw-table-wrap">
+                        <table class="kw-table" style="min-width:0">
+                            <thead>
+                                <tr><th>Kolom</th><th>Wajib</th><th>Contoh</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr><td><code class="kw-code">package_name</code></td><td>Ya</td><td>com.example.app</td></tr>
+                                <tr><td><code class="kw-code">nama_aplikasi</code></td><td>Ya</td><td>Aplikasi Saya</td></tr>
+                                <tr><td><code class="kw-code">isi_ulasan</code></td><td>Ya</td><td>Teks ulasan lengkap</td></tr>
+                                <tr><td><code class="kw-code">tanggal_ulasan</code></td><td>Ya</td><td>2026-11-17</td></tr>
+                                <tr><td><code class="kw-code">skor_bintang</code></td><td>Ya</td><td>1–5</td></tr>
+                                <tr><td><code class="kw-code">username_reviewer</code></td><td>Tidak</td><td>pengguna_1</td></tr>
+                                <tr><td><code class="kw-code">review_id</code></td><td>Tidak</td><td>review-001</td></tr>
+                                <tr><td><code class="kw-code">kategori</code></td><td>Tidak</td><td>Utilitas</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p class="kw-help">
+                        Kolom <code class="kw-code">review_id</code> mencegah duplikat dari Play Store.
+                        Tanpa kolom ini, setiap baris dianggap ulasan baru.
+                    </p>
+                </div>
+            </section>
+
+            <section class="kw-card">
+                <div class="kw-card__head">
+                    <h2 class="kw-card__title">Cara kerja impor</h2>
+                </div>
+                <div class="kw-card__body kw-stack" style="gap:9px">
+                    <div class="kw-inline" style="align-items:flex-start">
+                        <span class="kw-badge kw-badge--neutral">1</span>
+                        <p class="kw-help" style="margin:0">Seluruh baris divalidasi lebih dulu; jika ada error, tidak ada data yang disimpan.</p>
+                    </div>
+                    <div class="kw-inline" style="align-items:flex-start">
+                        <span class="kw-badge kw-badge--neutral">2</span>
+                        <p class="kw-help" style="margin:0">Filter <em>min_kata</em> dan pola generik menentukan status <strong>LOLOS</strong> atau <strong>DIBUANG</strong>.</p>
+                    </div>
+                    <div class="kw-inline" style="align-items:flex-start">
+                        <span class="kw-badge kw-badge--neutral">3</span>
+                        <p class="kw-help" style="margin:0">Setelah impor, jalankan ekstraksi + clustering dari Extraction Pipeline.</p>
+                    </div>
+                    <div class="kw-banner kw-banner--warning kw-mt-2">
+                        <svg aria-hidden="true"><use href="#icon-alert"></use></svg>
+                        <p style="margin:0">
+                            CSV belum tentu sudah disamarkan. Pastikan Anda tidak mengunggah
+                            data pribadi yang tidak diperlukan.
+                        </p>
+                    </div>
+                </div>
+            </section>
+        </aside>
+    </div>
+</div>
+{% endblock %}

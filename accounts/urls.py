@@ -7,6 +7,8 @@ urlpatterns = [
     path("login/", views.login_view, name="login"),
     path("signup/", views.signup_view, name="signup"),
     path("logout/", views.logout_view, name="logout"),
+    path("profil/", views.profile_view, name="profile"),
+    path("pengaturan/", views.settings_view, name="settings"),
 
     path("kelola-role/", views.kelola_role_view, name="kelola_role"),
     path(

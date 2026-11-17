@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+
+{% block title %}Profil Saya — KataWarga{% endblock %}
+
+{% block content %}
+<div class="kw-stack" style="gap:20px">
+
+    <header class="kw-page-head" style="margin-bottom:0">
+        <div>
+            <p class="kw-eyebrow">Akun</p>
+            <h1 class="kw-title">Profil Saya</h1>
+            <p class="kw-subtitle">
+                Informasi identitas, peran efektif, dan kontak akun KataWarga Anda.
+            </p>
+        </div>
+        <div class="kw-actions">
+            <a class="kw-btn kw-btn--secondary" href="{% url 'accounts:settings' %}">
+                <svg aria-hidden="true"><use href="#icon-settings"></use></svg>
+                Pengaturan tampilan
+            </a>
+            <a class="kw-btn kw-btn--primary" href="{% url 'dashboard:overview' %}">
+                <svg aria-hidden="true"><use href="#icon-dashboard"></use></svg>
+                Dashboard
+            </a>
+        </div>
+    </header>
+
+    <section class="kw-card kw-profile-hero">
+        <div class="kw-profile-hero__identity">
+            <span class="kw-avatar kw-avatar--lg" aria-hidden="true">{{ request.user.username|slice:":1"|upper }}</span>
+            <div style="min-width:0">
+                <h2 class="kw-profile-hero__name">{{ request.user.username }}</h2>
+                <p class="kw-profile-hero__meta">{{ request.user.email|default:"Email belum diisi" }}</p>
+                <div class="kw-inline" style="margin-top:7px">
+                    <span class="kw-badge kw-badge--accent">{{ acting_role_label }}</span>
+                    {% if is_simulating_role %}
+                    <span class="kw-badge kw-badge--warning">Mode simulasi</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="kw-actions">
+            <span class="kw-chip">
+                <svg aria-hidden="true"><use href="#icon-clock"></use></svg>
+                Bergabung {{ request.user.date_joined|date:"d M Y" }}
+            </span>
+        </div>
+    </section>
+
+    <div class="kw-grid kw-grid--sidebar">
+        <div class="kw-stack">
+            <section class="kw-card">
+                <div class="kw-card__head">
+                    <h2 class="kw-card__title">Kontak akun</h2>
+                </div>
+                <div class="kw-card__body">
+                    <form method="post" action="{% url 'accounts:profile' %}" class="kw-stack" style="gap:14px">
+                        {% csrf_token %}
+                        <div class="kw-form-grid kw-form-grid--2">
+                            <div>
+                                <label class="kw-label" for="username">Username</label>
+                                <input class="kw-input" id="username" type="text" value="{{ request.user.username }}" disabled aria-describedby="username-help">
+                                <p class="kw-help" id="username-help">Hubungi Requirements Engineer atau administrator untuk perubahan username.</p>
+                            </div>
+                            <div>
+                                <label class="kw-label" for="email">Email</label>
+                                <input
+                                    class="kw-input"
+                                    id="email"
+                                    type="email"
+                                    name="email"
+                                    value="{{ form.email.value|default_if_none:'' }}"
+                                    required
+                                    autocomplete="email"
+                                    aria-describedby="email-help"
+                                >
+                                {% if form.email.errors %}
+                                <p class="kw-help" style="color:var(--kw-danger-text)" role="alert">{{ form.email.errors.0 }}</p>
+                                {% else %}
+                                <p class="kw-help" id="email-help">Gunakan email aktif yang Anda kendalikan.</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="kw-actions">
+                            <button class="kw-btn kw-btn--primary" type="submit">
+                                <svg aria-hidden="true"><use href="#icon-check"></use></svg>
+                                Simpan email
+                            </button>
+                            <a class="kw-btn kw-btn--ghost" href="{% url 'accounts:profile' %}">Batalkan perubahan</a>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+        </div>
+
+        <aside class="kw-stack">
+            <section class="kw-card">
+                <div class="kw-card__head">
+                    <h2 class="kw-card__title">Hak akses peran</h2>
+                </div>
+                <div class="kw-card__body kw-stack" style="gap:8px">
+                    <div class="kw-role-card">
+                        <strong>Requirements Engineer</strong>
+                        <p>Menjalankan pipeline, menyusun user story, dan mengelola akses role.</p>
+                    </div>
+                    <div class="kw-role-card">
+                        <strong>Analyst</strong>
+                        <p>Memvalidasi hasil ekstraksi Who-What-Why dan menyetujui cluster.</p>
+                    </div>
+                    <div class="kw-role-card">
+                        <strong>Product Owner</strong>
+                        <p>Menyetujui atau mengabaikan user story sebelum masuk Sprint Backlog.</p>
+                    </div>
+                    <div class="kw-role-card">
+                        <strong>Tim Developer</strong>
+                        <p>Mengerjakan item Sprint Backlog dan menandainya selesai.</p>
+                    </div>
+                    <p class="kw-help">Peran diubah oleh Requirements Engineer atau administrator melalui Kelola Akses Role.</p>
+                </div>
+            </section>
+
+            <form method="post" action="{% url 'accounts:logout' %}">
+                {% csrf_token %}
+                <button class="kw-btn kw-btn--danger kw-btn--block" type="submit">
+                    <svg aria-hidden="true"><use href="#icon-logout"></use></svg>
+                    Keluar dari akun
+                </button>
+            </form>
+        </aside>
+    </div>
+</div>
+{% endblock %}

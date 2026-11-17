@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+
+{% block title %}Pengaturan — KataWarga{% endblock %}
+
+{% block content %}
+<div class="kw-stack" style="gap:20px">
+
+    <header class="kw-page-head" style="margin-bottom:0">
+        <div>
+            <p class="kw-eyebrow">Preferensi</p>
+            <h1 class="kw-title">Pengaturan Tampilan</h1>
+            <p class="kw-subtitle">
+                Pilih tema antarmuka KataWarga. Preferensi disimpan di browser ini
+                dan langsung diterapkan tanpa memuat ulang halaman.
+            </p>
+        </div>
+        <div class="kw-actions">
+            <a class="kw-btn kw-btn--secondary" href="{% url 'accounts:profile' %}">
+                <svg aria-hidden="true"><use href="#icon-user"></use></svg>
+                Profil saya
+            </a>
+        </div>
+    </header>
+
+    <div class="kw-grid kw-grid--sidebar">
+        <section class="kw-card">
+            <div class="kw-card__head">
+                <div>
+                    <h2 class="kw-card__title">Tema antarmuka</h2>
+                    <p class="kw-card__desc">Mode gelap adalah bawaan. Mode terang dapat dipilih kapan saja.</p>
+                </div>
+                <span class="kw-badge kw-badge--accent" data-theme-label>Mode gelap</span>
+            </div>
+            <div class="kw-card__body">
+                <div class="kw-theme-grid" role="group" aria-label="Pilihan tema">
+                    <button class="kw-theme-option" type="button" data-theme-option="dark" aria-pressed="true">
+                        <span class="kw-theme-option__swatch kw-theme-option__swatch--dark" aria-hidden="true">
+                            <span></span><span></span><span></span>
+                        </span>
+                        <span class="kw-theme-option__label">Mode gelap</span>
+                        <span class="kw-theme-option__desc">Navy workspace, kontras tinggi untuk kerja panjang.</span>
+                    </button>
+                    <button class="kw-theme-option" type="button" data-theme-option="light" aria-pressed="false">
+                        <span class="kw-theme-option__swatch kw-theme-option__swatch--light" aria-hidden="true">
+                            <span></span><span></span><span></span>
+                        </span>
+                        <span class="kw-theme-option__label">Mode terang</span>
+                        <span class="kw-theme-option__desc">Latar terang dan lembut untuk ruangan bercahaya.</span>
+                    </button>
+                </div>
+
+                <div class="kw-banner kw-mt-4">
+                    <svg aria-hidden="true"><use href="#icon-inbox"></use></svg>
+                    <p style="margin:0">
+                        Preferensi tema bersifat lokal per browser. KataWarga belum menyimpan
+                        preferensi tampilan ke profil server agar tidak menambah model data baru.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <aside class="kw-stack">
+            <section class="kw-card">
+                <div class="kw-card__head">
+                    <h2 class="kw-card__title">Ringkasan akun</h2>
+                </div>
+                <div class="kw-card__body">
+                    <div class="kw-inline" style="gap:10px">
+                        <span class="kw-avatar" aria-hidden="true">{{ request.user.username|slice:":1"|upper }}</span>
+                        <div style="min-width:0">
+                            <p style="margin:0;font-weight:650;color:var(--kw-text)">{{ request.user.username }}</p>
+                            <p class="kw-help" style="margin-top:1px">{{ request.user.email|default:"Email belum diisi" }}</p>
+                        </div>
+                    </div>
+                    <div class="kw-stack kw-mt-4" style="gap:8px">
+                        <div class="kw-between kw-text-sm">
+                            <span class="kw-muted">Peran efektif</span>
+                            <span class="kw-badge kw-badge--accent">{{ acting_role_label }}</span>
+                        </div>
+                        <div class="kw-between kw-text-sm">
+                            <span class="kw-muted">Login terakhir</span>
+                            <span class="kw-text">{{ request.user.last_login|date:"d M Y, H:i"|default:"-" }}</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </aside>
+    </div>
+</div>
+{% endblock %}

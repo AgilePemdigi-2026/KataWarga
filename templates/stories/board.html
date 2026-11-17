@@ -3,184 +3,200 @@
 {% block title %}User Story Backlog — KataWarga{% endblock %}
 
 {% block content %}
-<div class="space-y-6">
-    <!-- Header & Filter -->
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-gray-800">
+<div class="kw-stack" style="gap:18px">
+
+    <header class="kw-page-head" style="margin-bottom:0">
         <div>
-            <h1 class="text-2xl font-bold text-white">User Story Backlog</h1>
-            <p class="text-sm text-gray-400 mt-1">Papan validasi dan persetujuan user story (Product Owner quality gate).</p>
+            <p class="kw-eyebrow">Quality gate Product Owner</p>
+            <h1 class="kw-title">User Story Backlog</h1>
+            <p class="kw-subtitle">
+                Tinjau user story yang disusun Requirements Engineer, setujui untuk
+                memindahkannya ke Sprint Backlog, atau abaikan dengan alasan.
+            </p>
         </div>
+        <div class="kw-actions">
+            <span class="kw-chip">
+                <svg aria-hidden="true"><use href="#icon-stories"></use></svg>
+                {{ total_story }} user story
+            </span>
+            <a class="kw-btn kw-btn--secondary" href="{% url 'backlog:list' %}">
+                <svg aria-hidden="true"><use href="#icon-backlog"></use></svg>
+                Sprint Backlog
+            </a>
+        </div>
+    </header>
 
-        <!-- Filter Form (FR-APP-01) -->
-        <form method="get" action="{% url 'stories:board' %}" class="flex flex-wrap items-center gap-3">
-            <div>
-                <label for="filter-aplikasi" class="sr-only">Aplikasi</label>
-                <select id="filter-aplikasi" name="aplikasi" onchange="this.form.submit()"
-                        class="bg-gray-800 border border-gray-700 text-gray-200 text-xs rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500">
-                    <option value="">Semua Aplikasi</option>
-                    {% for app in aplikasi_list %}
-                    <option value="{{ app.package_name }}" {% if selected_aplikasi == app.package_name or selected_aplikasi == app.id|stringformat:"s" %}selected{% endif %}>
-                        {{ app.nama_aplikasi }}
-                    </option>
-                    {% endfor %}
-                </select>
-            </div>
+    <form method="get" action="{% url 'stories:board' %}" class="kw-filter-bar" role="search" aria-label="Filter papan user story">
+        <div class="kw-filter-bar__field kw-filter-bar__grow">
+            <label class="kw-label" for="filter-aplikasi">Aplikasi sumber</label>
+            <select class="kw-select" id="filter-aplikasi" name="aplikasi" data-auto-submit>
+                <option value="">Semua aplikasi</option>
+                {% for app in aplikasi_list %}
+                <option value="{{ app.package_name }}" {% if selected_aplikasi == app.package_name or selected_aplikasi == app.id|stringformat:"s" %}selected{% endif %}>
+                    {{ app.nama_aplikasi }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="kw-filter-bar__field">
+            <label class="kw-label" for="filter-prioritas">Prioritas</label>
+            <select class="kw-select" id="filter-prioritas" name="prioritas" data-auto-submit>
+                <option value="">Semua prioritas</option>
+                <option value="TINGGI" {% if selected_prioritas == 'TINGGI' %}selected{% endif %}>Tinggi</option>
+                <option value="SEDANG" {% if selected_prioritas == 'SEDANG' %}selected{% endif %}>Sedang</option>
+                <option value="RENDAH" {% if selected_prioritas == 'RENDAH' %}selected{% endif %}>Rendah</option>
+            </select>
+        </div>
+        {% if selected_aplikasi or selected_prioritas %}
+        <a class="kw-btn kw-btn--ghost kw-btn--sm" href="{% url 'stories:board' %}">Reset filter</a>
+        {% endif %}
+    </form>
 
-            <div>
-                <label for="filter-prioritas" class="sr-only">Prioritas</label>
-                <select id="filter-prioritas" name="prioritas" onchange="this.form.submit()"
-                        class="bg-gray-800 border border-gray-700 text-gray-200 text-xs rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500">
-                    <option value="">Semua Prioritas</option>
-                    <option value="TINGGI" {% if selected_prioritas == 'TINGGI' %}selected{% endif %}>Tinggi</option>
-                    <option value="SEDANG" {% if selected_prioritas == 'SEDANG' %}selected{% endif %}>Sedang</option>
-                    <option value="RENDAH" {% if selected_prioritas == 'RENDAH' %}selected{% endif %}>Rendah</option>
-                </select>
-            </div>
-
-            {% if selected_aplikasi or selected_prioritas %}
-            <a href="{% url 'stories:board' %}" class="text-xs text-gray-400 hover:text-white underline">Reset</a>
-            {% endif %}
-        </form>
+    <div class="kw-tabs kw-board-tabs" role="tablist" aria-label="Pilih kolom papan" data-board-tabs>
+        <button class="kw-tab" type="button" role="tab" aria-selected="true" data-board-tab="to-review">
+            To Review <span class="kw-tab__count">{{ to_review|length }}</span>
+        </button>
+        <button class="kw-tab" type="button" role="tab" aria-selected="false" data-board-tab="sprint-backlog">
+            Sprint Backlog <span class="kw-tab__count">{{ sprint_backlog|length }}</span>
+        </button>
+        <button class="kw-tab" type="button" role="tab" aria-selected="false" data-board-tab="dismissed">
+            Dismissed <span class="kw-tab__count">{{ dismissed|length }}</span>
+        </button>
     </div>
 
-    <!-- Papan Kanban 3 Kolom: To Review, Sprint Backlog, Dismissed (FR-APP-07) -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-        <!-- Kolom 1: To Review (MENUNGGU_PERSETUJUAN) -->
-        <div class="bg-gray-800/60 border border-gray-700/80 rounded-xl p-4 flex flex-col min-h-[500px]">
-            <div class="flex items-center justify-between pb-3 mb-4 border-b border-gray-700">
-                <div class="flex items-center space-x-2">
-                    <span class="w-3 h-3 rounded-full bg-blue-500"></span>
-                    <h2 class="font-semibold text-white text-sm">To Review</h2>
-                </div>
-                <span class="text-xs px-2 py-0.5 rounded-full bg-gray-700 text-gray-300">{{ to_review|length }}</span>
+    <!-- Papan Kanban 3 kolom: To Review, Sprint Backlog, Dismissed. -->
+    <div class="kw-kanban">
+        <!-- Kolom 1 -->
+        <section class="kw-kanban-col is-active" data-board-col="to-review" aria-labelledby="board-to-review">
+            <div class="kw-kanban-head">
+                <h2 class="kw-kanban-title" id="board-to-review">
+                    <span class="kw-kanban-dot kw-kanban-dot--accent"></span>
+                    To Review
+                </h2>
+                <span class="kw-kanban-count">{{ to_review|length }}</span>
             </div>
-
-            <div class="space-y-3 flex-1">
+            <div class="kw-kanban-body">
                 {% for story in to_review %}
-                <div class="bg-gray-800 border border-gray-700 hover:border-blue-500/50 rounded-lg p-4 transition shadow-sm space-y-3">
-                    <div class="flex items-center justify-between text-xs">
-                        <!-- Tag Aplikasi -->
-                        <span class="px-2 py-0.5 rounded bg-blue-900/40 text-blue-300 border border-blue-800">
-                            {{ story.cluster.anggota_set.first.hasil_ekstraksi.ulasan.aplikasi.nama_aplikasi|default:"Aplikasi" }}
+                <article class="kw-story">
+                    <div class="kw-story__top">
+                        <span class="kw-badge kw-badge--info">{{ story.aplikasi_label }}</span>
+                        <span class="kw-badge {% if story.kategori_prioritas == 'TINGGI' %}kw-badge--danger{% elif story.kategori_prioritas == 'SEDANG' %}kw-badge--warning{% else %}kw-badge--success{% endif %}">
+                            {{ story.get_kategori_prioritas_display }}
                         </span>
-                        <!-- Kategori & Skor -->
-                        <div class="flex items-center space-x-1">
-                            <span class="font-medium {% if story.kategori_prioritas == 'TINGGI' %}text-red-400{% elif story.kategori_prioritas == 'SEDANG' %}text-yellow-400{% else %}text-green-400{% endif %}">
-                                {{ story.get_kategori_prioritas_display }}
-                            </span>
-                            <span class="text-gray-500">•</span>
-                            <span class="text-gray-300 font-bold">{{ story.skor_prioritas }}</span>
-                        </div>
                     </div>
-
-                    <div class="text-xs font-medium text-blue-300">
+                    <p class="kw-story__cluster">
+                        <svg aria-hidden="true" width="11" height="11" style="display:inline;vertical-align:-1px"><use href="#icon-clustering"></use></svg>
                         {{ story.cluster.nama_topik }}
-                    </div>
-
-                    <!-- Kalimat User Story -->
-                    <p class="text-xs text-gray-200 leading-relaxed font-normal">
-                        {{ story.kalimat }}
                     </p>
-
-                    <div class="pt-2 border-t border-gray-700/50 flex justify-between items-center text-xs">
-                        <span class="text-gray-400">{{ story.cluster.skor_signifikansi }} ulasan</span>
-                        <a href="{% url 'stories:detail' story.id %}" class="text-blue-400 hover:underline font-medium">Review &rarr;</a>
+                    <p class="kw-story__text">{{ story.kalimat }}</p>
+                    <div class="kw-story__meta">
+                        <span class="kw-story__score">Skor <strong>{{ story.skor_prioritas }}</strong></span>
+                        <span>· {{ story.jumlah_ulasan }} ulasan</span>
+                        <span>· {{ story.tanggal_disusun|date:"d M Y" }}</span>
                     </div>
-                </div>
+                    <div class="kw-story__actions">
+                        <a class="kw-btn kw-btn--primary kw-btn--sm" href="{% url 'stories:detail' story.pk %}?next={{ next_url|urlencode }}">
+                            Review
+                            <svg aria-hidden="true"><use href="#icon-arrow-right"></use></svg>
+                        </a>
+                    </div>
+                </article>
                 {% empty %}
-                <p class="text-xs text-gray-500 text-center py-8">Tidak ada item yang perlu direview.</p>
+                <div class="kw-empty">
+                    <span class="kw-empty__icon"><svg aria-hidden="true"><use href="#icon-check"></use></svg></span>
+                    <h3 class="kw-empty__title">Tidak ada item untuk direview</h3>
+                    <p class="kw-empty__text">
+                        Semua user story sudah diputuskan, atau belum ada cluster tervalidasi
+                        yang disusun menjadi user story.
+                    </p>
+                </div>
                 {% endfor %}
             </div>
-        </div>
+        </section>
 
-        <!-- Kolom 2: Sprint Backlog (DISETUJUI) -->
-        <div class="bg-gray-800/60 border border-gray-700/80 rounded-xl p-4 flex flex-col min-h-[500px]">
-            <div class="flex items-center justify-between pb-3 mb-4 border-b border-gray-700">
-                <div class="flex items-center space-x-2">
-                    <span class="w-3 h-3 rounded-full bg-green-500"></span>
-                    <h2 class="font-semibold text-white text-sm">Sprint Backlog</h2>
-                </div>
-                <span class="text-xs px-2 py-0.5 rounded-full bg-gray-700 text-gray-300">{{ sprint_backlog|length }}</span>
+        <!-- Kolom 2 -->
+        <section class="kw-kanban-col" data-board-col="sprint-backlog" aria-labelledby="board-sprint">
+            <div class="kw-kanban-head">
+                <h2 class="kw-kanban-title" id="board-sprint">
+                    <span class="kw-kanban-dot kw-kanban-dot--success"></span>
+                    Sprint Backlog
+                </h2>
+                <span class="kw-kanban-count">{{ sprint_backlog|length }}</span>
             </div>
-
-            <div class="space-y-3 flex-1">
+            <div class="kw-kanban-body">
                 {% for story in sprint_backlog %}
-                <div class="bg-gray-800 border border-gray-700 hover:border-green-500/50 rounded-lg p-4 transition shadow-sm space-y-3">
-                    <div class="flex items-center justify-between text-xs">
-                        <!-- Tag Aplikasi -->
-                        <span class="px-2 py-0.5 rounded bg-green-900/40 text-green-300 border border-green-800">
-                            {{ story.cluster.anggota_set.first.hasil_ekstraksi.ulasan.aplikasi.nama_aplikasi|default:"Aplikasi" }}
+                <article class="kw-story">
+                    <div class="kw-story__top">
+                        <span class="kw-badge kw-badge--success">{{ story.aplikasi_label }}</span>
+                        <span class="kw-badge {% if story.kategori_prioritas == 'TINGGI' %}kw-badge--danger{% elif story.kategori_prioritas == 'SEDANG' %}kw-badge--warning{% else %}kw-badge--success{% endif %}">
+                            {{ story.get_kategori_prioritas_display }}
                         </span>
-                        <!-- Kategori & Skor -->
-                        <div class="flex items-center space-x-1">
-                            <span class="font-medium {% if story.kategori_prioritas == 'TINGGI' %}text-red-400{% elif story.kategori_prioritas == 'SEDANG' %}text-yellow-400{% else %}text-green-400{% endif %}">
-                                {{ story.get_kategori_prioritas_display }}
-                            </span>
-                            <span class="text-gray-500">•</span>
-                            <span class="text-gray-300 font-bold">{{ story.skor_prioritas }}</span>
-                        </div>
                     </div>
-
-                    <div class="text-xs font-medium text-green-300">
-                        {{ story.cluster.nama_topik }}
+                    <p class="kw-story__cluster">{{ story.cluster.nama_topik }}</p>
+                    <p class="kw-story__text">{{ story.kalimat }}</p>
+                    <div class="kw-story__meta">
+                        <span class="kw-story__score">Skor <strong>{{ story.skor_prioritas }}</strong></span>
+                        <span>· disetujui {{ story.tanggal_persetujuan|date:"d M Y"|default:"-" }}</span>
                     </div>
-
-                    <p class="text-xs text-gray-200 leading-relaxed font-normal">
-                        {{ story.kalimat }}
-                    </p>
-
-                    <div class="pt-2 border-t border-gray-700/50 flex justify-between items-center text-xs">
-                        <span class="text-green-400">✓ Disetujui</span>
-                        <a href="{% url 'stories:detail' story.id %}" class="text-gray-400 hover:text-white font-medium">Detail</a>
+                    <div class="kw-story__actions">
+                        <span class="kw-badge kw-badge--success kw-badge--dot">Disetujui</span>
+                        <a class="kw-btn kw-btn--secondary kw-btn--xs" href="{% url 'stories:detail' story.pk %}">
+                            Detail
+                        </a>
+                        <a class="kw-btn kw-btn--ghost kw-btn--xs" href="{% url 'backlog:list' %}">
+                            Backlog
+                        </a>
                     </div>
-                </div>
+                </article>
                 {% empty %}
-                <p class="text-xs text-gray-500 text-center py-8">Belum ada user story yang disetujui.</p>
+                <div class="kw-empty">
+                    <span class="kw-empty__icon"><svg aria-hidden="true"><use href="#icon-backlog"></use></svg></span>
+                    <h3 class="kw-empty__title">Belum ada user story disetujui</h3>
+                    <p class="kw-empty__text">Story yang Anda setujui akan muncul di kolom ini dan masuk Sprint Backlog.</p>
+                </div>
                 {% endfor %}
             </div>
-        </div>
+        </section>
 
-        <!-- Kolom 3: Dismissed (DIABAIKAN) -->
-        <div class="bg-gray-800/60 border border-gray-700/80 rounded-xl p-4 flex flex-col min-h-[500px]">
-            <div class="flex items-center justify-between pb-3 mb-4 border-b border-gray-700">
-                <div class="flex items-center space-x-2">
-                    <span class="w-3 h-3 rounded-full bg-gray-500"></span>
-                    <h2 class="font-semibold text-white text-sm">Dismissed</h2>
-                </div>
-                <span class="text-xs px-2 py-0.5 rounded-full bg-gray-700 text-gray-300">{{ dismissed|length }}</span>
+        <!-- Kolom 3 -->
+        <section class="kw-kanban-col" data-board-col="dismissed" aria-labelledby="board-dismissed">
+            <div class="kw-kanban-head">
+                <h2 class="kw-kanban-title" id="board-dismissed">
+                    <span class="kw-kanban-dot kw-kanban-dot--muted"></span>
+                    Dismissed
+                </h2>
+                <span class="kw-kanban-count">{{ dismissed|length }}</span>
             </div>
-
-            <div class="space-y-3 flex-1">
+            <div class="kw-kanban-body">
                 {% for story in dismissed %}
-                <div class="bg-gray-800/60 border border-gray-700/60 rounded-lg p-4 space-y-3 opacity-75">
-                    <div class="flex items-center justify-between text-xs">
-                        <span class="px-2 py-0.5 rounded bg-gray-700 text-gray-400">
-                            {{ story.cluster.anggota_set.first.hasil_ekstraksi.ulasan.aplikasi.nama_aplikasi|default:"Aplikasi" }}
-                        </span>
-                        <span class="text-gray-400 font-medium">Skor {{ story.skor_prioritas }}</span>
+                <article class="kw-story" style="opacity:.82">
+                    <div class="kw-story__top">
+                        <span class="kw-badge kw-badge--neutral">{{ story.aplikasi_label }}</span>
+                        <span class="kw-badge kw-badge--neutral">Diabaikan</span>
                     </div>
-
-                    <div class="text-xs font-medium text-gray-400">
-                        {{ story.cluster.nama_topik }}
-                    </div>
-
-                    <p class="text-xs text-gray-400 leading-relaxed">
-                        {{ story.kalimat }}
-                    </p>
-
+                    <p class="kw-story__cluster">{{ story.cluster.nama_topik }}</p>
+                    <p class="kw-story__text">{{ story.kalimat }}</p>
                     {% if story.alasan_diabaikan %}
-                    <p class="text-xs text-red-400 italic">Alasan: {{ story.alasan_diabaikan }}</p>
+                    <p class="kw-help" style="color:var(--kw-danger-text)">
+                        Alasan: {{ story.alasan_diabaikan }}
+                    </p>
                     {% endif %}
-
-                    <div class="pt-2 border-t border-gray-700/40 flex justify-end text-xs">
-                        <a href="{% url 'stories:detail' story.id %}" class="text-gray-400 hover:text-white">Detail</a>
+                    <div class="kw-story__meta">
+                        <span class="kw-story__score">Skor <strong>{{ story.skor_prioritas }}</strong></span>
                     </div>
-                </div>
+                    <div class="kw-story__actions">
+                        <a class="kw-btn kw-btn--secondary kw-btn--xs" href="{% url 'stories:detail' story.pk %}">Detail</a>
+                    </div>
+                </article>
                 {% empty %}
-                <p class="text-xs text-gray-500 text-center py-8">Tidak ada user story yang diabaikan.</p>
+                <div class="kw-empty">
+                    <span class="kw-empty__icon"><svg aria-hidden="true"><use href="#icon-x"></use></svg></span>
+                    <h3 class="kw-empty__title">Tidak ada story diabaikan</h3>
+                    <p class="kw-empty__text">User story yang Anda abaikan tetap tersimpan di sini untuk audit.</p>
+                </div>
                 {% endfor %}
             </div>
-        </div>
+        </section>
     </div>
 </div>
 {% endblock %}

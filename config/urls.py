@@ -9,4 +9,5 @@ urlpatterns = [
     path('', include('accounts.urls')),
     path('', include('extraction.urls')),
     path('', include('backlog.urls')),
+    path('', include('reviews.urls')),
 ]

@@ -1,110 +1,150 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
 
-{% block title %}Clustering | KataWarga{% endblock %}
+{% block title %}Clustering — KataWarga{% endblock %}
 
 {% block content %}
-<div class="max-w-7xl mx-auto space-y-6">
+<div class="kw-stack" style="gap:20px">
 
-    <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+    <header class="kw-page-head" style="margin-bottom:0">
         <div>
-            <p class="text-xs font-semibold uppercase tracking-[0.2em] text-indigo-400">Monitoring Cluster</p>
-            <h1 class="text-2xl font-bold text-white mt-1">Clustering / Hasil Pengelompokan</h1>
-            <p class="text-sm text-gray-400 mt-1">
+            <p class="kw-eyebrow">Monitoring Cluster</p>
+            <h1 class="kw-title">Clustering / Hasil Pengelompokan</h1>
+            <p class="kw-subtitle">
                 {% if is_re %}
-                Lihat cluster dan seluruh komentar asli anggotanya. Validasi cluster tetap menjadi kewenangan Analyst.
+                Lihat cluster dan seluruh komentar asli anggotanya. Validasi cluster tetap
+                menjadi kewenangan Analyst.
                 {% else %}
-                Buka setiap cluster untuk memeriksa seluruh komentar sumber sebelum menyetujui atau menolak.
+                Buka setiap cluster untuk memeriksa seluruh komentar sumber sebelum
+                menyetujui atau menolak.
                 {% endif %}
             </p>
         </div>
-        <a href="{% url 'extraction:pipeline' %}" class="self-start px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg text-xs font-semibold text-gray-200 transition">
-            &larr; Extraction Pipeline
-        </a>
-    </div>
+        <div class="kw-actions">
+            <a class="kw-btn kw-btn--secondary" href="{% url 'extraction:pipeline' %}">
+                <svg aria-hidden="true"><use href="#icon-arrow-left"></use></svg>
+                Extraction Pipeline
+            </a>
+            {% if is_analyst %}
+            <a class="kw-btn kw-btn--primary" href="{% url 'extraction:validasi_list' %}">
+                <svg aria-hidden="true"><use href="#icon-validasi"></use></svg>
+                Antrean Validasi
+            </a>
+            {% endif %}
+        </div>
+    </header>
 
-    <form method="get" action="{% url 'extraction:cluster_list' %}" class="bg-gray-800 border border-gray-700 rounded-xl p-4 flex flex-wrap items-end gap-3">
-        <div>
-            <label for="status" class="block text-[11px] text-gray-400 mb-1">Status Cluster</label>
-            <select id="status" name="status" class="bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-200 focus:outline-none focus:border-indigo-500">
+    <form method="get" action="{% url 'extraction:cluster_list' %}" class="kw-filter-bar">
+        <div class="kw-filter-bar__field">
+            <label class="kw-label" for="status">Status cluster</label>
+            <select class="kw-select" id="status" name="status" data-auto-submit>
                 <option value="">Semua status</option>
                 {% for code, label in status_choices %}
                 <option value="{{ code }}" {% if selected_status == code %}selected{% endif %}>{{ label }}</option>
                 {% endfor %}
             </select>
         </div>
-        <button type="submit" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-xs font-semibold text-white transition">Terapkan Filter</button>
-        {% if selected_status %}
-        <a href="{% url 'extraction:cluster_list' %}" class="px-3 py-2 text-xs text-gray-400 hover:text-white underline">Reset</a>
-        {% endif %}
-        <span class="ml-auto text-xs text-gray-500">{{ page_obj.paginator.count }} cluster</span>
+        <div class="kw-inline">
+            <button class="kw-btn kw-btn--secondary kw-btn--sm" type="submit">
+                <svg aria-hidden="true"><use href="#icon-filter"></use></svg>
+                Terapkan
+            </button>
+            {% if selected_status %}
+            <a class="kw-btn kw-btn--ghost kw-btn--sm" href="{% url 'extraction:cluster_list' %}">Reset</a>
+            {% endif %}
+        </div>
+        <span class="kw-badge kw-badge--neutral" style="margin-left:auto">{{ page_obj.paginator.count }} cluster</span>
     </form>
 
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <div class="kw-grid kw-grid--2">
         {% for cluster in page_obj %}
-        <article class="bg-gray-800 border border-gray-700 rounded-xl p-5 space-y-4 shadow">
-            <div class="flex items-start justify-between gap-3">
-                <div>
-                    <span class="text-[11px] uppercase tracking-wider text-gray-500">Cluster #{{ cluster.pk }}</span>
-                    <h2 class="text-lg font-bold text-white mt-0.5">{{ cluster.nama_topik }}</h2>
+        <article class="kw-card">
+            <div class="kw-card__head" style="align-items:flex-start">
+                <div style="min-width:0">
+                    <p class="kw-eyebrow" style="margin-bottom:2px">Cluster #{{ cluster.pk }}</p>
+                    <h2 class="kw-card__title" style="font-size:15px">{{ cluster.nama_topik }}</h2>
                 </div>
-                <span class="shrink-0 px-2.5 py-1 rounded-full text-[11px] font-semibold
-                    {% if cluster.status_cluster == 'MENUNGGU_VALIDASI' %}bg-yellow-900/50 text-yellow-300 border border-yellow-800
-                    {% elif cluster.status_cluster == 'TERVALIDASI' %}bg-green-900/50 text-green-300 border border-green-800
-                    {% elif cluster.status_cluster == 'SIGNIFIKAN' %}bg-indigo-900/50 text-indigo-300 border border-indigo-800
-                    {% else %}bg-gray-700 text-gray-300 border border-gray-600{% endif %}">
+                <span class="kw-badge {% if cluster.status_cluster == 'MENUNGGU_VALIDASI' %}kw-badge--warning{% elif cluster.status_cluster == 'TERVALIDASI' %}kw-badge--success{% elif cluster.status_cluster == 'SIGNIFIKAN' %}kw-badge--accent{% else %}kw-badge--neutral{% endif %}">
                     {{ cluster.get_status_cluster_display }}
                 </span>
             </div>
-
-            <div class="flex flex-wrap items-center gap-2 text-[11px] text-gray-400">
-                <span class="px-2 py-0.5 rounded bg-gray-900 border border-gray-700">{{ cluster.jumlah_anggota }} ulasan</span>
-                <span>Skor signifikansi: <strong class="text-gray-200">{{ cluster.skor_signifikansi }}</strong></span>
-                <span>· {{ cluster.tanggal_dibuat|date:"d M Y H:i" }}</span>
-            </div>
-
-            <div class="space-y-2">
-                <p class="text-[11px] uppercase tracking-wider text-gray-500">Contoh komentar anggota</p>
-                {% for anggota in cluster.anggota_set.all|slice:":2" %}
-                <div class="bg-gray-900/60 border border-gray-700/60 rounded-lg p-3">
-                    <div class="flex items-center justify-between text-[11px] text-gray-400 mb-1">
-                        <span>{{ anggota.hasil_ekstraksi.ulasan.aplikasi.nama_aplikasi }}</span>
-                        <span>{{ anggota.hasil_ekstraksi.ulasan.skor_bintang }} ★</span>
-                    </div>
-                    <p class="text-xs text-gray-200 italic line-clamp-2">"{{ anggota.hasil_ekstraksi.ulasan.isi_ulasan }}"</p>
+            <div class="kw-card__body kw-stack" style="gap:12px">
+                <div class="kw-inline kw-text-xs">
+                    <span class="kw-chip">
+                        <svg aria-hidden="true"><use href="#icon-users"></use></svg>
+                        {{ cluster.jumlah_anggota }} ulasan
+                    </span>
+                    <span class="kw-chip">
+                        <svg aria-hidden="true"><use href="#icon-chart"></use></svg>
+                        Skor {{ cluster.skor_signifikansi }}
+                    </span>
+                    <span class="kw-chip">
+                        <svg aria-hidden="true"><use href="#icon-clock"></use></svg>
+                        {{ cluster.tanggal_dibuat|date:"d M Y H:i" }}
+                    </span>
                 </div>
-                {% empty %}
-                <p class="text-xs text-gray-500">Belum ada anggota cluster.</p>
-                {% endfor %}
-            </div>
 
-            <div class="pt-3 border-t border-gray-700 flex items-center justify-between gap-3">
-                <span class="text-[11px] text-gray-500">WHO/WHAT/WHY tersedia di detail.</span>
-                <a href="{% url 'extraction:cluster_detail' cluster.pk %}"
-                   class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold transition">
-                    Lihat Detail Cluster &rarr;
-                </a>
+                <div>
+                    <p class="kw-label" style="margin-bottom:6px">Contoh komentar anggota</p>
+                    {% for anggota in cluster.anggota_set.all|slice:":2" %}
+                    <div class="kw-review">
+                        <div class="kw-review__meta">
+                            <span>{{ anggota.hasil_ekstraksi.ulasan.aplikasi.nama_aplikasi }}</span>
+                            <span>
+                                <svg aria-hidden="true" style="display:inline;width:9px;height:9px;vertical-align:-1px"><use href="#icon-star"></use></svg>
+                                {{ anggota.hasil_ekstraksi.ulasan.skor_bintang }}
+                            </span>
+                        </div>
+                        <p class="kw-review__text">"{{ anggota.hasil_ekstraksi.ulasan.isi_ulasan|truncatechars:180 }}"</p>
+                    </div>
+                    {% empty %}
+                    <p class="kw-help" style="margin:0">Belum ada anggota cluster.</p>
+                    {% endfor %}
+                </div>
+
+                <div class="kw-divider" style="margin:0"></div>
+                <div class="kw-inline" style="justify-content:flex-end">
+                    <a class="kw-btn kw-btn--primary kw-btn--sm" href="{% url 'extraction:cluster_detail' cluster.pk %}">
+                        Lihat Detail Cluster
+                        <svg aria-hidden="true"><use href="#icon-arrow-right"></use></svg>
+                    </a>
+                </div>
             </div>
         </article>
         {% empty %}
-        <div class="lg:col-span-2 bg-gray-800/60 border border-dashed border-gray-700 rounded-xl p-10 text-center space-y-2">
-            <h2 class="text-lg font-semibold text-white">Belum ada cluster</h2>
-            <p class="text-sm text-gray-400">Jalankan ekstraksi dan clustering dari halaman Extraction Pipeline.</p>
-            <a href="{% url 'extraction:pipeline' %}" class="inline-block mt-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-xs font-semibold text-white">Buka Extraction Pipeline</a>
+        <div class="kw-empty" style="grid-column:1/-1">
+            <span class="kw-empty__icon">
+                <svg aria-hidden="true"><use href="#icon-clustering"></use></svg>
+            </span>
+            <p class="kw-empty__title">Belum ada cluster</p>
+            <p class="kw-empty__text">
+                Jalankan ekstraksi dan clustering dari halaman Extraction Pipeline.
+                {% if selected_status %}Filter status saat ini juga dapat menyebabkan hasil kosong.{% endif %}
+            </p>
+            <div class="kw-actions" style="justify-content:center">
+                <a class="kw-btn kw-btn--primary kw-btn--sm" href="{% url 'extraction:pipeline' %}">Buka Extraction Pipeline</a>
+                {% if selected_status %}
+                <a class="kw-btn kw-btn--secondary kw-btn--sm" href="{% url 'extraction:cluster_list' %}">Reset filter</a>
+                {% endif %}
+            </div>
         </div>
         {% endfor %}
     </div>
 
     {% if page_obj.paginator.num_pages > 1 %}
-    <div class="flex items-center justify-between gap-3">
-        <p class="text-xs text-gray-500">Halaman {{ page_obj.number }} dari {{ page_obj.paginator.num_pages }}</p>
-        <div class="flex items-center gap-2">
+    <div class="kw-between">
+        <p class="kw-help" style="margin:0">Halaman {{ page_obj.number }} dari {{ page_obj.paginator.num_pages }}</p>
+        <div class="kw-inline">
             {% if page_obj.has_previous %}
-            <a href="?page={{ page_obj.previous_page_number }}{% if selected_status %}&status={{ selected_status|urlencode }}{% endif %}"
-               class="px-3 py-1.5 bg-gray-800 border border-gray-700 rounded-lg text-xs text-gray-300 hover:text-white">&larr; Sebelumnya</a>
+            <a class="kw-btn kw-btn--secondary kw-btn--sm" href="?page={{ page_obj.previous_page_number }}{% if selected_status %}&amp;status={{ selected_status|urlencode }}{% endif %}">
+                <svg aria-hidden="true"><use href="#icon-arrow-left"></use></svg>
+                Sebelumnya
+            </a>
             {% endif %}
             {% if page_obj.has_next %}
-            <a href="?page={{ page_obj.next_page_number }}{% if selected_status %}&status={{ selected_status|urlencode }}{% endif %}"
-               class="px-3 py-1.5 bg-gray-800 border border-gray-700 rounded-lg text-xs text-gray-300 hover:text-white">Berikutnya &rarr;</a>
+            <a class="kw-btn kw-btn--secondary kw-btn--sm" href="?page={{ page_obj.next_page_number }}{% if selected_status %}&amp;status={{ selected_status|urlencode }}{% endif %}">
+                Berikutnya
+                <svg aria-hidden="true"><use href="#icon-arrow-right"></use></svg>
+            </a>
             {% endif %}
         </div>
     </div>
