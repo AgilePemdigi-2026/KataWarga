@@ -1,4 +1,6 @@
+
 """Uji dashboard overview dan pencarian global berbasis peran."""
+
 import pytest
 from django.urls import reverse
 
@@ -26,13 +28,18 @@ def search_data(db):
         nama_aplikasi="Aplikasi Notifikasi",
         package_name="com.example.notifikasi",
     )
+
     ulasan = Ulasan.objects.create(
         aplikasi=app,
-        isi_ulasan="Notifikasi sering terlambat masuk sehingga informasi penting terlewat",
+        isi_ulasan=(
+            "Notifikasi sering terlambat masuk "
+            "sehingga informasi penting terlewat"
+        ),
         tanggal_ulasan="2024-11-01",
         skor_bintang=2,
         status_filter=Ulasan.StatusFilter.LOLOS,
     )
+
     hasil = HasilEkstraksi.objects.create(
         ulasan=ulasan,
         teks_who="pengguna aplikasi",
@@ -40,48 +47,90 @@ def search_data(db):
         teks_why="informasi penting terlewat",
         skor_confidence=0.88,
     )
+
     cluster = Cluster.objects.create(
         nama_topik="Notifikasi Lambat",
         jumlah_anggota=1,
         skor_signifikansi=4.5,
         status_cluster=Cluster.StatusCluster.MENUNGGU_VALIDASI,
     )
-    ClusterAnggota.objects.create(cluster=cluster, hasil_ekstraksi=hasil)
+
+    ClusterAnggota.objects.create(
+        cluster=cluster,
+        hasil_ekstraksi=hasil,
+    )
+
     story = UserStory.objects.create(
         cluster=cluster,
         peran="pengguna aplikasi",
         kebutuhan="mendapat notifikasi lebih cepat",
         alasan="informasi penting tidak terlambat diterima",
         skor_prioritas=80,
-        status_persetujuan=UserStory.StatusPersetujuan.MENUNGGU_PERSETUJUAN,
+        status_persetujuan=(
+            UserStory.StatusPersetujuan.MENUNGGU_PERSETUJUAN
+        ),
     )
-    return {"app": app, "ulasan": ulasan, "cluster": cluster, "story": story}
+
+    return {
+        "app": app,
+        "ulasan": ulasan,
+        "cluster": cluster,
+        "story": story,
+    }
 
 
 def test_overview_renders_kpi_and_honest_empty_chart(client):
-    user = _user("dev_overview", User.RolePengguna.TIM_DEVELOPER)
+    user = _user(
+        "dev_overview",
+        User.RolePengguna.TIM_DEVELOPER,
+    )
     client.force_login(user)
 
-    response = client.get(reverse("dashboard:overview"))
+    response = client.get(
+        reverse("dashboard:overview")
+    )
     body = response.content.decode("utf-8")
 
     assert response.status_code == 200
+
+    # KPI Dashboard tetap ditampilkan
     assert "Total Scraped Reviews" in body
-    assert "Status Pipeline" in body
+    assert "Filtered Noise Rate" in body
+    assert "Extracted User Stories" in body
+    assert "Model Confidence Score" in body
+
+    # Komponen Dashboard utama tetap tersedia
+    assert "Review Sentiment vs. User Story Generation" in body
+    assert "Biggest Topic Cluster" in body
+    assert "Rata-rata Rating Aplikasi" in body
+
+    # Status Pipeline sengaja dihapus dari desain Dashboard
+    assert "Status Pipeline" not in body
+
+    # Saat belum ada data, grafik menampilkan empty state
     assert "Tren belum dapat ditampilkan" in body
     assert "dashboard-chart-data" not in body
 
 
 def test_overview_embeds_real_chart_payload(client, search_data):
-    user = _user("re_overview", User.RolePengguna.REQUIREMENTS_ENGINEER)
+    user = _user(
+        "re_overview",
+        User.RolePengguna.REQUIREMENTS_ENGINEER,
+    )
     client.force_login(user)
 
-    response = client.get(reverse("dashboard:overview"))
+    response = client.get(
+        reverse("dashboard:overview")
+    )
     body = response.content.decode("utf-8")
 
     assert response.status_code == 200
+
+    # Grafik menggunakan data aktual dari backend
     assert 'id="dashboard-chart-data"' in body
     assert "data-chart-source" in body
+
+    # Data cluster dan aplikasi berasal dari database pengujian
     assert "Notifikasi Lambat" in body
     assert "Aplikasi Notifikasi" in body
 
@@ -89,17 +138,38 @@ def test_overview_embeds_real_chart_payload(client, search_data):
 def test_search_is_scoped_for_each_role(client, search_data):
     expectations = {
         User.RolePengguna.REQUIREMENTS_ENGINEER: {
-            "reviews", "clusters", "stories",
+            "reviews",
+            "clusters",
+            "stories",
         },
-        User.RolePengguna.ANALYST: {"reviews", "clusters"},
-        User.RolePengguna.PRODUCT_OWNER: {"stories"},
+        User.RolePengguna.ANALYST: {
+            "reviews",
+            "clusters",
+        },
+        User.RolePengguna.PRODUCT_OWNER: {
+            "stories",
+        },
     }
 
-    for index, (role, expected_keys) in enumerate(expectations.items()):
-        user = _user(f"search_{index}", role)
+    for index, (role, expected_keys) in enumerate(
+        expectations.items()
+    ):
+        user = _user(
+            f"search_{index}",
+            role,
+        )
+
         client.force_login(user)
-        response = client.get(reverse("dashboard:search"), {"q": "Notifikasi"})
-        keys = {group["key"] for group in response.context["groups"]}
+
+        response = client.get(
+            reverse("dashboard:search"),
+            {"q": "Notifikasi"},
+        )
+
+        keys = {
+            group["key"]
+            for group in response.context["groups"]
+        }
 
         assert response.status_code == 200
         assert keys == expected_keys
@@ -107,10 +177,16 @@ def test_search_is_scoped_for_each_role(client, search_data):
 
 
 def test_short_query_shows_prompt_not_results(client):
-    user = _user("re_short", User.RolePengguna.REQUIREMENTS_ENGINEER)
+    user = _user(
+        "re_short",
+        User.RolePengguna.REQUIREMENTS_ENGINEER,
+    )
     client.force_login(user)
 
-    response = client.get(reverse("dashboard:search"), {"q": "n"})
+    response = client.get(
+        reverse("dashboard:search"),
+        {"q": "n"},
+    )
 
     assert response.status_code == 200
     assert response.context["groups"] == []
@@ -118,10 +194,17 @@ def test_short_query_shows_prompt_not_results(client):
 
 
 def test_search_empty_result_is_honest(client):
-    user = _user("po_empty", User.RolePengguna.PRODUCT_OWNER)
+    user = _user(
+        "po_empty",
+        User.RolePengguna.PRODUCT_OWNER,
+    )
     client.force_login(user)
 
-    response = client.get(reverse("dashboard:search"), {"q": "tidakadayangcocok"})
+    response = client.get(
+        reverse("dashboard:search"),
+        {"q": "tidakadayangcocok"},
+    )
+
     body = response.content.decode("utf-8")
 
     assert response.status_code == 200
