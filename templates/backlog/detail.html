@@ -1,134 +1,161 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
 
-{% block title %}Detail Backlog #{{ item.pk }} | KataWarga{% endblock %}
+{% block title %}Detail Backlog #{{ item.pk }} — KataWarga{% endblock %}
 
 {% block content %}
-<div class="max-w-5xl mx-auto space-y-6">
+<div class="kw-stack" style="gap:20px">
 
-    <!-- Breadcrumb -->
-    <div class="flex flex-wrap items-center gap-2 text-xs text-gray-400">
-        <a href="{% url 'backlog:list' %}" class="hover:text-white">&larr; Kembali ke Sprint Backlog</a>
+    <nav class="kw-inline kw-text-sm kw-muted" aria-label="Breadcrumb">
+        <a class="kw-btn kw-btn--ghost kw-btn--xs" href="{% url 'backlog:list' %}">
+            <svg aria-hidden="true"><use href="#icon-arrow-left"></use></svg>
+            Sprint Backlog
+        </a>
         <span>/</span>
-        <span class="text-gray-200">Backlog #{{ item.pk }}</span>
-    </div>
+        <span class="kw-text">Backlog #{{ item.pk }}</span>
+    </nav>
 
-    <!-- Ringkasan item -->
-    <div class="bg-gray-800 border border-gray-700 rounded-xl p-6 shadow space-y-5">
-        <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-            <div>
-                <span class="text-[11px] uppercase tracking-wider text-gray-500">Detail Backlog</span>
-                <h1 class="text-xl font-bold text-white mt-1">User Story #{{ story.pk }}</h1>
-                <p class="text-xs text-gray-400 mt-1">Cluster: {{ story.cluster.nama_topik }}</p>
+    <section class="kw-card">
+        <div class="kw-card__head" style="align-items:flex-start">
+            <div style="min-width:0">
+                <p class="kw-eyebrow">Detail Backlog</p>
+                <h1 class="kw-title" style="font-size:22px;margin-top:2px">User Story #{{ story.pk }}</h1>
+                <p class="kw-help" style="margin-top:4px">Cluster: {{ story.cluster.nama_topik }}</p>
             </div>
-            <div class="flex flex-wrap items-center gap-2">
-                <span class="px-3 py-1.5 rounded-full text-xs font-semibold
-                    {% if story.kategori_prioritas == 'TINGGI' %}bg-red-900/60 text-red-300 border border-red-700
-                    {% elif story.kategori_prioritas == 'SEDANG' %}bg-yellow-900/60 text-yellow-300 border border-yellow-700
-                    {% else %}bg-green-900/60 text-green-300 border border-green-700{% endif %}">
+            <div class="kw-inline">
+                <span class="kw-badge {% if story.kategori_prioritas == 'TINGGI' %}kw-badge--danger{% elif story.kategori_prioritas == 'SEDANG' %}kw-badge--warning{% else %}kw-badge--success{% endif %}">
                     Prioritas {{ story.get_kategori_prioritas_display }}
                 </span>
-                <span class="px-3 py-1.5 rounded-full text-xs font-semibold
-                    {% if item.status_eksekusi == 'SELESAI' %}bg-green-900/60 text-green-300 border border-green-700
-                    {% elif item.status_eksekusi == 'SEDANG_DIKERJAKAN' %}bg-blue-900/60 text-blue-300 border border-blue-700
-                    {% else %}bg-purple-900/60 text-purple-300 border border-purple-700{% endif %}">
+                <span class="kw-badge {% if item.status_eksekusi == 'SELESAI' %}kw-badge--success{% elif item.status_eksekusi == 'SEDANG_DIKERJAKAN' %}kw-badge--info{% else %}kw-badge--accent{% endif %}">
                     {{ item.get_status_eksekusi_display }}
                 </span>
             </div>
         </div>
 
-        <div class="bg-gray-900/60 border border-gray-700/60 rounded-lg p-5">
-            <h2 class="text-[11px] uppercase tracking-wider text-gray-500 mb-2">Kalimat User Story</h2>
-            <p class="text-lg text-white font-medium leading-relaxed">{{ story.kalimat }}</p>
-        </div>
+        <div class="kw-card__body kw-stack">
+            <div class="kw-banner" style="display:block;background:var(--kw-surface-2)">
+                <p class="kw-label" style="margin-bottom:5px">Kalimat User Story</p>
+                <p class="kw-text" style="margin:0;font-size:16px;font-weight:600;line-height:1.6">{{ story.kalimat }}</p>
+            </div>
 
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div class="bg-gray-900/50 border border-gray-700/50 rounded-lg p-3 text-center">
-                <p class="text-xl font-bold text-white tabular-nums">{{ story.skor_prioritas }}</p>
-                <p class="text-[11px] text-gray-400">Skor Prioritas</p>
+            <div class="kw-grid kw-grid--4" style="gap:10px">
+                <div class="kw-mini-stat">
+                    <p class="kw-mini-stat__value kw-tabular">{{ story.skor_prioritas }}</p>
+                    <p class="kw-mini-stat__label">Skor Prioritas</p>
+                </div>
+                <div class="kw-mini-stat">
+                    <p class="kw-mini-stat__value kw-tabular">{{ metrik.n }}</p>
+                    <p class="kw-mini-stat__label">Ulasan Unik (n)</p>
+                </div>
+                <div class="kw-mini-stat" style="border-color:var(--kw-info-border)">
+                    <p class="kw-mini-stat__value kw-tabular" style="color:var(--kw-info-text)">{{ metrik.f }}</p>
+                    <p class="kw-mini-stat__label">Komponen Frekuensi</p>
+                </div>
+                <div class="kw-mini-stat" style="border-color:var(--kw-warning-border)">
+                    <p class="kw-mini-stat__value kw-tabular" style="color:var(--kw-warning-text)">{{ metrik.s }}</p>
+                    <p class="kw-mini-stat__label">Rata-rata Sentimen</p>
+                </div>
             </div>
-            <div class="bg-gray-900/50 border border-gray-700/50 rounded-lg p-3 text-center">
-                <p class="text-xl font-bold text-gray-200 tabular-nums">{{ metrik.n }}</p>
-                <p class="text-[11px] text-gray-400">Ulasan Unik (n)</p>
-            </div>
-            <div class="bg-gray-900/50 border border-gray-700/50 rounded-lg p-3 text-center">
-                <p class="text-xl font-bold text-blue-300 tabular-nums">{{ metrik.f }}</p>
-                <p class="text-[11px] text-gray-400">Komponen Frekuensi</p>
-            </div>
-            <div class="bg-gray-900/50 border border-gray-700/50 rounded-lg p-3 text-center">
-                <p class="text-xl font-bold text-yellow-300 tabular-nums">{{ metrik.s }}</p>
-                <p class="text-[11px] text-gray-400">Rata-rata Sentimen</p>
-            </div>
-        </div>
 
-        <!-- Status pengerjaan & timestamp -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-            <div class="bg-gray-900/50 border border-gray-700/50 rounded-lg p-3">
-                <p class="text-gray-500 uppercase tracking-wider text-[10px]">Masuk Backlog</p>
-                <p class="text-gray-200 mt-1">{{ item.tanggal_masuk_backlog|date:"d M Y, H:i" }}</p>
+            <div class="kw-grid kw-grid--3" style="gap:10px">
+                <div class="kw-mini-stat">
+                    <p class="kw-mini-stat__value" style="font-size:12px">{{ item.tanggal_masuk_backlog|date:"d M Y, H:i" }}</p>
+                    <p class="kw-mini-stat__label">Masuk Backlog</p>
+                </div>
+                <div class="kw-mini-stat">
+                    <p class="kw-mini-stat__value" style="font-size:12px">{{ item.tanggal_mulai_dikerjakan|date:"d M Y, H:i"|default:"Belum dimulai" }}</p>
+                    <p class="kw-mini-stat__label">Mulai Dikerjakan</p>
+                </div>
+                <div class="kw-mini-stat">
+                    <p class="kw-mini-stat__value" style="font-size:12px;{% if item.tanggal_selesai %}color:var(--kw-success-text){% endif %}">{{ item.tanggal_selesai|date:"d M Y, H:i"|default:"Belum selesai" }}</p>
+                    <p class="kw-mini-stat__label">Selesai</p>
+                </div>
             </div>
-            <div class="bg-gray-900/50 border border-gray-700/50 rounded-lg p-3">
-                <p class="text-gray-500 uppercase tracking-wider text-[10px]">Mulai Dikerjakan</p>
-                <p class="text-gray-200 mt-1">{{ item.tanggal_mulai_dikerjakan|date:"d M Y, H:i"|default:"Belum dimulai" }}</p>
-            </div>
-            <div class="bg-gray-900/50 border border-gray-700/50 rounded-lg p-3">
-                <p class="text-gray-500 uppercase tracking-wider text-[10px]">Selesai</p>
-                <p class="text-gray-200 mt-1">{{ item.tanggal_selesai|date:"d M Y, H:i"|default:"Belum selesai" }}</p>
-            </div>
-        </div>
 
-        {% if item.pengguna %}
-        <p class="text-xs text-gray-400">Dikerjakan oleh: <strong class="text-gray-200">{{ item.pengguna.username }}</strong></p>
-        {% endif %}
+            {% if item.pengguna %}
+            <p class="kw-help" style="margin:0">
+                Dikerjakan oleh <strong class="kw-text">{{ item.pengguna.username }}</strong>
+            </p>
+            {% endif %}
 
-        <!-- Aksi Developer -->
-        <div class="pt-4 border-t border-gray-700">
+            <div class="kw-divider" style="margin:0"></div>
+
             {% if can_execute %}
                 {% if item.status_eksekusi == 'SIAP_DIEKSEKUSI' %}
                 <form method="post" action="{% url 'backlog:mulai' item.pk %}">
                     {% csrf_token %}
-                    <button type="submit" class="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg text-sm transition shadow">
-                        ▶ Mulai Kerjakan
+                    <button class="kw-btn kw-btn--primary" type="submit">
+                        <svg aria-hidden="true"><use href="#icon-play"></use></svg>
+                        Mulai Kerjakan
                     </button>
                 </form>
                 {% elif item.status_eksekusi == 'SEDANG_DIKERJAKAN' %}
                 <form method="post" action="{% url 'backlog:selesai' item.pk %}">
                     {% csrf_token %}
-                    <button type="submit" class="px-6 py-2.5 bg-green-600 hover:bg-green-500 text-white font-semibold rounded-lg text-sm transition shadow">
-                        ✓ Tandai Selesai
+                    <button class="kw-btn kw-btn--success" type="submit">
+                        <svg aria-hidden="true"><use href="#icon-check"></use></svg>
+                        Tandai Selesai
                     </button>
                 </form>
                 {% else %}
-                <div class="inline-block px-5 py-2.5 bg-green-950/50 border border-green-800 rounded-lg text-sm text-green-300 font-medium">
-                    ✓ Keluhan pengguna telah ditangani
+                <div class="kw-banner kw-banner--success" style="justify-content:center">
+                    <svg aria-hidden="true"><use href="#icon-check"></use></svg>
+                    <p style="margin:0">Keluhan pengguna telah ditangani</p>
                 </div>
                 {% endif %}
             {% else %}
-            <div class="text-xs text-gray-400 bg-gray-900/60 border border-gray-700 rounded-lg p-3">
-                Mode Product Owner: Anda dapat melihat status dan timestamp, tetapi tidak dapat mengubah status eksekusi.
+            <div class="kw-banner">
+                <svg aria-hidden="true"><use href="#icon-inbox"></use></svg>
+                <p style="margin:0">
+                    <strong>Mode Product Owner:</strong> Anda dapat melihat status dan timestamp,
+                    tetapi tidak dapat mengubah status eksekusi.
+                </p>
             </div>
             {% endif %}
         </div>
-    </div>
+    </section>
 
-    <!-- Ulasan sumber -->
-    <section class="bg-gray-800 border border-gray-700 rounded-xl p-6 space-y-4 shadow">
-        <div class="flex items-center justify-between gap-3">
-            <h2 class="text-sm font-semibold text-white uppercase tracking-wider">Ulasan Sumber Cluster</h2>
-            <a href="{% url 'stories:detail' story.pk %}" class="text-xs text-indigo-300 hover:text-indigo-200 underline">Detail User Story &rarr;</a>
-        </div>
-        <div class="space-y-3 max-h-96 overflow-y-auto pr-2">
-            {% for u in ulasan_sumber %}
-            <div class="bg-gray-900/60 border border-gray-700/50 rounded-lg p-3 text-xs space-y-1">
-                <div class="flex flex-wrap items-center justify-between gap-2 text-gray-400">
-                    <span>{{ u.aplikasi.nama_aplikasi }} · {{ u.username_reviewer|default:"Pengulas" }} · {{ u.tanggal_ulasan }}</span>
-                    <span class="text-yellow-400">{{ u.skor_bintang }} ★</span>
-                </div>
-                <p class="text-gray-200 leading-relaxed">"{{ u.isi_ulasan }}"</p>
+    <section class="kw-card">
+        <div class="kw-card__head">
+            <div>
+                <h2 class="kw-card__title">Ulasan Sumber Cluster</h2>
+                <p class="kw-card__desc">Komentar asli yang menjadi dasar User Story ini.</p>
             </div>
-            {% empty %}
-            <p class="text-xs text-gray-500">Tidak ada ulasan sumber yang dimuat.</p>
-            {% endfor %}
+            <a class="kw-btn kw-btn--secondary kw-btn--sm" href="{% url 'stories:detail' story.pk %}">
+                Detail User Story
+                <svg aria-hidden="true"><use href="#icon-arrow-right"></use></svg>
+            </a>
+        </div>
+        <div class="kw-card__body">
+            <div class="kw-review-list kw-scrollbar">
+                {% for u in ulasan_sumber %}
+                <div class="kw-review">
+                    <div class="kw-review__meta">
+                        <span>{{ u.aplikasi.nama_aplikasi }} &middot; {{ u.username_reviewer|default:"Pengulas" }} &middot; {{ u.tanggal_ulasan }}</span>
+                        <span class="kw-inline" style="gap:4px">
+                            <svg aria-hidden="true" style="width:9px;height:9px"><use href="#icon-star"></use></svg>
+                            {{ u.skor_bintang }}
+                        </span>
+                    </div>
+                    <p class="kw-review__text">"{{ u.isi_ulasan }}"</p>
+                </div>
+                {% empty %}
+                <div class="kw-empty kw-empty--plain">
+                    <span class="kw-empty__icon">
+                        <svg aria-hidden="true"><use href="#icon-inbox"></use></svg>
+                    </span>
+                    <p class="kw-empty__title">Tidak ada ulasan sumber</p>
+                    <p class="kw-empty__text">Cluster terkait belum memiliki ulasan yang dapat dimuat.</p>
+                </div>
+                {% endfor %}
+            </div>
         </div>
     </section>
+
+    <div class="kw-between">
+        <a class="kw-btn kw-btn--ghost kw-btn--sm" href="{% url 'backlog:list' %}">
+            <svg aria-hidden="true"><use href="#icon-arrow-left"></use></svg>
+            Kembali ke Sprint Backlog
+        </a>
+    </div>
 </div>
 {% endblock %}

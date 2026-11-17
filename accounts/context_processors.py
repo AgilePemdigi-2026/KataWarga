@@ -11,42 +11,62 @@ SIDEBAR_ITEMS = {
     'dashboard': {
         'label': 'Dashboard',
         'url_name': 'dashboard:overview',
+        'group': 'workspace',
+        'group_label': 'Workspace',
     },
     'pipeline': {
         'label': 'Extraction Pipeline',
         'url_name': 'extraction:pipeline',
+        'group': 'pipeline',
+        'group_label': 'Pipeline & Validasi',
     },
     'clustering': {
         'label': 'Clustering',
         'url_name': 'extraction:cluster_list',
+        'group': 'pipeline',
+        'group_label': 'Pipeline & Validasi',
     },
     'validasi': {
         'label': 'Validasi Ekstraksi',
         'url_name': 'extraction:validasi_list',
+        'group': 'pipeline',
+        'group_label': 'Pipeline & Validasi',
     },
     'compose': {
         'label': 'Susun User Story',
         'url_name': 'stories:susun',
+        'group': 'delivery',
+        'group_label': 'User Story',
     },
     'stories': {
         'label': 'User Story Backlog',
         'url_name': 'stories:board',
+        'group': 'delivery',
+        'group_label': 'User Story',
     },
     'story_detail': {
         'label': 'Detail User Story',
         'url_name': 'stories:detail_latest',
+        'group': 'delivery',
+        'group_label': 'User Story',
     },
     'backlog': {
         'label': 'Sprint Backlog',
         'url_name': 'backlog:list',
+        'group': 'delivery',
+        'group_label': 'Delivery',
     },
     'backlog_detail': {
         'label': 'Detail Backlog',
         'url_name': 'backlog:detail_latest',
+        'group': 'delivery',
+        'group_label': 'Delivery',
     },
     'roles': {
         'label': 'Kelola Akses Role',
         'url_name': 'accounts:kelola_role',
+        'group': 'admin',
+        'group_label': 'Administrasi',
     },
 }
 
@@ -87,6 +107,8 @@ _ACTIVE_SECTIONS = {
     ('extraction', 'cluster_list'): 'clustering',
     ('extraction', 'cluster_detail'): 'clustering',
     ('extraction', 'validasi_list'): 'validasi',
+    ('reviews', 'import_csv'): 'pipeline',
+    ('reviews', 'csv_template'): 'pipeline',
     ('stories', 'susun'): 'compose',
     ('stories', 'board'): 'stories',
     ('stories', 'detail'): 'stories',
@@ -117,6 +139,8 @@ def _sidebar_items(effective_role):
             'key': key,
             'label': config['label'],
             'href': href,
+            'group': config.get('group', 'workspace'),
+            'group_label': config.get('group_label', 'Workspace'),
         })
 
     return items
@@ -137,6 +161,8 @@ def navigation(request):
         active_section = _ACTIVE_SECTIONS.get(
             (match.namespace or '', active_url_name), ''
         )
+
+    active_config = SIDEBAR_ITEMS.get(active_section, {})
 
     can_manage_roles = bool(
         is_authenticated
@@ -168,5 +194,7 @@ def navigation(request):
         'is_developer': effective_role == User.RolePengguna.TIM_DEVELOPER,
         'active_section': active_section,
         'active_url_name': active_url_name,
+        'active_label': active_config.get('label', 'Workspace'),
+        'active_group_label': active_config.get('group_label', 'Workspace'),
         'sidebar_items': _sidebar_items(effective_role),
     }

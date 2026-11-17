@@ -9,4 +9,5 @@ urlpatterns = [
     path('', views.overview_view, name='overview'),
     # Alias eksplisit agar /dashboard/ juga dapat dibuka.
     path('dashboard/', views.overview_view, name='dashboard'),
+    path('pencarian/', views.search_view, name='search'),
 ]

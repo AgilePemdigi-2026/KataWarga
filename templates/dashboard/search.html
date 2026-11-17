@@ -1,0 +1,149 @@
+{% extends 'base.html' %}
+
+{% block title %}Pencarian{% if query %} “{{ query }}”{% endif %} — KataWarga{% endblock %}
+
+{% block content %}
+<div class="kw-stack" style="gap:18px">
+
+    <header class="kw-page-head" style="margin-bottom:0">
+        <div>
+            <p class="kw-eyebrow">Pencarian global</p>
+            <h1 class="kw-title">Temukan data KataWarga</h1>
+            <p class="kw-subtitle">
+                Hasil dibatasi otomatis sesuai peran efektif
+                <strong class="kw-accent">{{ effective_role_label }}</strong>,
+                sehingga Anda hanya melihat data yang memang boleh diakses.
+            </p>
+        </div>
+        <div class="kw-actions">
+            {% if is_re or is_analyst %}
+            <span class="kw-badge kw-badge--info">Ulasan &amp; cluster</span>
+            {% endif %}
+            {% if is_re or is_po or is_developer %}
+            <span class="kw-badge kw-badge--accent">User Story</span>
+            {% endif %}
+            {% if is_po or is_developer %}
+            <span class="kw-badge kw-badge--success">Sprint Backlog</span>
+            {% endif %}
+        </div>
+    </header>
+
+    <section class="kw-search-hero">
+        <form class="kw-search-hero__form" method="get" action="{% url 'dashboard:search' %}" role="search">
+            <label class="kw-sr-only" for="search-page-input">Kata kunci pencarian</label>
+            <input
+                class="kw-input"
+                id="search-page-input"
+                type="search"
+                name="q"
+                value="{{ query }}"
+                placeholder="Contoh: gagal login, notifikasi, pengguna aplikasi…"
+                maxlength="120"
+                autofocus
+                autocomplete="off"
+            >
+            <button class="kw-btn kw-btn--primary" type="submit">
+                <svg aria-hidden="true"><use href="#icon-search"></use></svg>
+                Cari
+            </button>
+        </form>
+        <p class="kw-help" style="margin:0">
+            Minimal 2 karakter. Pencarian memeriksa teks ulasan, nama cluster,
+            kalimat user story, dan item Sprint Backlog yang relevan.
+        </p>
+    </section>
+
+    {% if not searched %}
+    <section class="kw-card">
+        <div class="kw-card__body">
+            <div class="kw-empty">
+                <span class="kw-empty__icon"><svg aria-hidden="true"><use href="#icon-search"></use></svg></span>
+                <h2 class="kw-empty__title">
+                    {% if query %}Kata kunci terlalu pendek{% else %}Mulai pencarian{% endif %}
+                </h2>
+                <p class="kw-empty__text">
+                    {% if query %}
+                    Masukkan minimal 2 karakter agar hasil pencarian relevan.
+                    {% else %}
+                    Ketik kata kunci pada kolom di atas.
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    </section>
+
+    {% else %}
+        {% if groups %}
+        <div class="kw-between">
+            <div>
+                <h2 class="kw-section-title">{{ total }} hasil untuk “{{ query }}”</h2>
+                <p class="kw-section-desc">Menampilkan maksimal 6 hasil teratas per kategori.</p>
+            </div>
+            <a class="kw-btn kw-btn--secondary kw-btn--sm" href="{% url 'dashboard:search' %}">Bersihkan pencarian</a>
+        </div>
+
+        {% for group in groups %}
+        <section class="kw-card">
+            <div class="kw-card__head">
+                <div class="kw-inline">
+                    <span class="kw-search-result__icon">
+                        <svg aria-hidden="true"><use href="#{{ group.icon }}"></use></svg>
+                    </span>
+                    <div>
+                        <h2 class="kw-card__title">{{ group.label }}</h2>
+                        <p class="kw-card__desc">{{ group.total }} hasil ditemukan</p>
+                    </div>
+                </div>
+                {% if group.key == 'reviews' %}
+                <a class="kw-btn kw-btn--ghost kw-btn--xs" href="{% url 'extraction:pipeline' %}?q={{ query|urlencode }}">
+                    Buka pipeline
+                    <svg aria-hidden="true"><use href="#icon-arrow-right"></use></svg>
+                </a>
+                {% endif %}
+            </div>
+            <div class="kw-card__body" style="padding-block:4px">
+                {% for item in group.items %}
+                <a class="kw-search-result" href="{{ item.url }}">
+                    <span class="kw-search-result__icon" aria-hidden="true">
+                        <svg><use href="#{{ item.icon }}"></use></svg>
+                    </span>
+                    <span style="min-width:0;flex:1">
+                        <span class="kw-search-result__title" style="display:block">{{ item.title }}</span>
+                        <span class="kw-search-result__snippet" style="display:block">{{ item.snippet }}</span>
+                        <span class="kw-chip" style="margin-top:5px">{{ item.meta }}</span>
+                    </span>
+                    <svg aria-hidden="true" width="14" height="14" style="color:var(--kw-muted-2);flex:0 0 auto;margin-top:8px">
+                        <use href="#icon-arrow-right"></use>
+                    </svg>
+                </a>
+                {% endfor %}
+                {% if group.total > 6 %}
+                <p class="kw-help" style="padding:8px 2px 10px">
+                    {{ group.total|add:"-6" }} hasil lainnya tidak ditampilkan. Persempit kata kunci untuk melihat hasil yang lebih spesifik.
+                </p>
+                {% endif %}
+            </div>
+        </section>
+        {% endfor %}
+
+        {% else %}
+        <section class="kw-card">
+            <div class="kw-card__body">
+                <div class="kw-empty">
+                    <span class="kw-empty__icon"><svg aria-hidden="true"><use href="#icon-inbox"></use></svg></span>
+                    <h2 class="kw-empty__title">Tidak ada hasil untuk “{{ query }}”</h2>
+                    <p class="kw-empty__text">
+                        Coba kata kunci lain, periksa ejaan, atau gunakan istilah yang
+                        muncul pada ulasan, cluster, atau user story. Peran efektif Anda
+                        ({{ effective_role_label }}) juga membatasi cakupan pencarian.
+                    </p>
+                    <a class="kw-btn kw-btn--secondary kw-btn--sm kw-empty__action" href="{% url 'dashboard:overview' %}">
+                        Kembali ke Dashboard
+                    </a>
+                </div>
+            </div>
+        </section>
+        {% endif %}
+    {% endif %}
+</div>
+{% endblock %}

@@ -10,12 +10,56 @@ from django.contrib import messages
 from django.http import HttpResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils.http import url_has_allowed_host_and_scheme
 
 from accounts.decorators import _get_acting_role, role_required
 from accounts.models import User
+from extraction.models import Cluster
 from reviews.models import Aplikasi, Ulasan
 from stories.models import UserStory
 from stories.services import composer, approval, scoring
+
+
+def _safe_next_url(request, next_url):
+    """Izinkan redirect balik hanya ke host yang sama."""
+    if not next_url:
+        return None
+    if url_has_allowed_host_and_scheme(
+        url=next_url,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return next_url
+    return None
+
+
+def _decorate_stories(stories):
+    """Tambahkan label aplikasi tanpa query tambahan (prefetch di view)."""
+    for story in stories:
+        nama_aplikasi = []
+        for anggota in story.cluster.anggota_set.all():
+            aplikasi = anggota.hasil_ekstraksi.ulasan.aplikasi
+            if aplikasi.nama_aplikasi not in nama_aplikasi:
+                nama_aplikasi.append(aplikasi.nama_aplikasi)
+        story.aplikasi_label = (
+            nama_aplikasi[0] if nama_aplikasi else "Aplikasi tidak tercatat"
+        )
+        story.jumlah_aplikasi = len(nama_aplikasi)
+        story.jumlah_ulasan = story.cluster.jumlah_anggota
+    return stories
+
+
+def _compose_stats():
+    return {
+        'cluster_siap': Cluster.objects.filter(
+            status_cluster=Cluster.StatusCluster.TERVALIDASI,
+            user_story__isnull=True,
+        ).count(),
+        'total_story': UserStory.objects.count(),
+        'story_menunggu': UserStory.objects.filter(
+            status_persetujuan=UserStory.StatusPersetujuan.MENUNGGU_PERSETUJUAN
+        ).count(),
+    }
 
 
 @role_required(User.RolePengguna.REQUIREMENTS_ENGINEER)
@@ -42,10 +86,14 @@ def susun_user_story_view(request):
         return render(request, 'stories/compose.html', {
             'stories': stories,
             'baru_dibuat': len(stories_created),
+            **_compose_stats(),
         })
 
     stories = UserStory.objects.all().select_related('cluster')
-    return render(request, 'stories/compose.html', {'stories': stories})
+    return render(request, 'stories/compose.html', {
+        'stories': stories,
+        **_compose_stats(),
+    })
 
 
 @role_required(User.RolePengguna.PRODUCT_OWNER)
@@ -57,7 +105,11 @@ def user_story_board_view(request):
       - Sprint Backlog (DISETUJUI)
       - Dismissed (DIABAIKAN)
     """
-    qs = UserStory.objects.all().select_related('cluster')
+    qs = (
+        UserStory.objects
+        .select_related('cluster')
+        .prefetch_related('cluster__anggota_set__hasil_ekstraksi__ulasan__aplikasi')
+    )
 
     app_filter = request.GET.get('aplikasi', '').strip()
     if app_filter:
@@ -88,8 +140,11 @@ def user_story_board_view(request):
         s for s in qs
         if s.status_persetujuan == UserStory.StatusPersetujuan.DIABAIKAN
     ]
+    _decorate_stories(to_review)
+    _decorate_stories(sprint_backlog)
+    _decorate_stories(dismissed)
 
-    aplikasi_list = Aplikasi.objects.filter(aktif=True)
+    aplikasi_list = Aplikasi.objects.filter(aktif=True).order_by('nama_aplikasi')
 
     return render(request, 'stories/board.html', {
         'to_review': to_review,
@@ -98,6 +153,8 @@ def user_story_board_view(request):
         'aplikasi_list': aplikasi_list,
         'selected_aplikasi': app_filter,
         'selected_prioritas': prio_filter,
+        'total_story': len(to_review) + len(sprint_backlog) + len(dismissed),
+        'next_url': request.get_full_path(),
     })
 
 
@@ -149,6 +206,9 @@ def user_story_detail_view(request, pk):
         ),
         'back_url': back_url,
         'back_label': back_label,
+        'next_url': _safe_next_url(
+            request, request.GET.get('next') or request.POST.get('next')
+        ),
     })
 
 
@@ -185,6 +245,7 @@ def setujui_view(request, pk):
         return HttpResponseForbidden('Metode tidak diizinkan.')
 
     story = get_object_or_404(UserStory, pk=pk)
+    next_url = _safe_next_url(request, request.POST.get('next'))
 
     try:
         approval.setujui_user_story(story, validator_user=request.user)
@@ -195,13 +256,14 @@ def setujui_view(request, pk):
         return redirect('stories:detail', pk=pk)
 
     messages.success(request, 'User story berhasil disimpan ke backlog')
+    tujuan = next_url or reverse('backlog:list')
 
     if request.headers.get('HX-Request'):
         response = HttpResponse(status=200)
-        response['HX-Redirect'] = reverse('backlog:list')
+        response['HX-Redirect'] = tujuan
         return response
 
-    return redirect('backlog:list')
+    return redirect(tujuan)
 
 
 @role_required(User.RolePengguna.PRODUCT_OWNER)
@@ -215,6 +277,7 @@ def abaikan_view(request, pk):
 
     story = get_object_or_404(UserStory, pk=pk)
     alasan = request.POST.get('alasan', '')
+    next_url = _safe_next_url(request, request.POST.get('next'))
     approval.abaikan_user_story(story, alasan=alasan)
 
     messages.info(request, 'User story telah diabaikan.')
@@ -228,6 +291,7 @@ def abaikan_view(request, pk):
             'can_view_cluster': False,
             'back_url': reverse('stories:board'),
             'back_label': 'Kembali ke Papan Backlog',
+            'next_url': next_url,
         })
 
-    return redirect('stories:detail', pk=pk)
+    return redirect(next_url or reverse('stories:detail', kwargs={'pk': pk}))

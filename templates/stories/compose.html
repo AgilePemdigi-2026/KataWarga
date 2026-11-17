@@ -3,26 +3,78 @@
 {% block title %}Susun User Story — KataWarga{% endblock %}
 
 {% block content %}
-<div class="max-w-6xl mx-auto space-y-6">
-    <div class="flex items-center justify-between pb-4 border-b border-gray-800">
-        <div>
-            <h1 class="text-2xl font-bold text-white">Menyusun dan Memprioritaskan User Story</h1>
-            <p class="text-sm text-gray-400 mt-1">Elisitasi otomatis cluster tervalidasi menjadi format standar user story.</p>
-        </div>
+<div class="kw-stack" style="gap:18px">
 
-        <!-- Tombol Susun User Story (FR-USR-01) -->
-        <form method="post" action="{% url 'stories:susun' %}" hx-post="{% url 'stories:susun' %}" hx-target="#daftar-user-story">
-            {% csrf_token %}
-            <button type="submit"
-                    class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-medium rounded-lg text-sm transition shadow-lg flex items-center space-x-2">
-                <span>⚡</span>
-                <span>Susun User Story</span>
-            </button>
-        </form>
+    <header class="kw-page-head" style="margin-bottom:0">
+        <div>
+            <p class="kw-eyebrow">Elisitasi otomatis</p>
+            <h1 class="kw-title">Menyusun dan Memprioritaskan User Story</h1>
+            <p class="kw-subtitle">
+                Ubah cluster yang sudah tervalidasi Analyst menjadi user story
+                berformat <em>Sebagai … saya ingin … supaya …</em>, lengkap dengan
+                skor prioritas.
+            </p>
+        </div>
+        <div class="kw-actions">
+            <a class="kw-btn kw-btn--secondary" href="{% url 'reviews:import_csv' %}">
+                <svg aria-hidden="true"><use href="#icon-upload"></use></svg>
+                Impor CSV
+            </a>
+            <form method="post" action="{% url 'stories:susun' %}" hx-post="{% url 'stories:susun' %}" hx-target="#daftar-user-story" hx-swap="innerHTML">
+                {% csrf_token %}
+                <button type="submit" class="kw-btn kw-btn--primary">
+                    <svg aria-hidden="true"><use href="#icon-sparkles"></use></svg>
+                    Susun User Story
+                </button>
+            </form>
+        </div>
+    </header>
+
+    <section class="kw-kpi-grid">
+        <article class="kw-kpi kw-kpi--info">
+            <div class="kw-kpi__top">
+                <span class="kw-kpi__label">Cluster siap disusun</span>
+                <span class="kw-kpi__icon"><svg aria-hidden="true"><use href="#icon-clustering"></use></svg></span>
+            </div>
+            <p class="kw-kpi__value">{{ cluster_siap }}</p>
+            <p class="kw-kpi__hint">Tervalidasi dan belum memiliki user story.</p>
+        </article>
+        <article class="kw-kpi">
+            <div class="kw-kpi__top">
+                <span class="kw-kpi__label">Total user story</span>
+                <span class="kw-kpi__icon"><svg aria-hidden="true"><use href="#icon-stories"></use></svg></span>
+            </div>
+            <p class="kw-kpi__value">{{ total_story }}</p>
+            <p class="kw-kpi__hint">Seluruh story yang pernah disusun.</p>
+        </article>
+        <article class="kw-kpi kw-kpi--warning">
+            <div class="kw-kpi__top">
+                <span class="kw-kpi__label">Menunggu Product Owner</span>
+                <span class="kw-kpi__icon"><svg aria-hidden="true"><use href="#icon-clock"></use></svg></span>
+            </div>
+            <p class="kw-kpi__value">{{ story_menunggu }}</p>
+            <p class="kw-kpi__hint">Belum diputuskan pada papan Product Owner.</p>
+        </article>
+        <article class="kw-kpi kw-kpi--success">
+            <div class="kw-kpi__top">
+                <span class="kw-kpi__label">Alur berikutnya</span>
+                <span class="kw-kpi__icon"><svg aria-hidden="true"><use href="#icon-check"></use></svg></span>
+            </div>
+            <p class="kw-kpi__value" style="font-size:18px;line-height:1.3">Product Owner</p>
+            <p class="kw-kpi__hint">Story baru otomatis berstatus Menunggu Persetujuan.</p>
+        </article>
+    </section>
+
+    <div class="kw-banner">
+        <svg aria-hidden="true"><use href="#icon-sparkles"></use></svg>
+        <p style="margin:0">
+            Penyusunan bersifat idempoten: cluster yang sudah punya user story tidak
+            akan diduplikasi. Cluster di bawah ambang signifikansi ditandai diabaikan
+            oleh proses composer.
+        </p>
     </div>
 
-    <!-- Section daftar-user-story (FR-USR-08, Gherkin acceptance) -->
-    <section id="daftar-user-story" class="space-y-4">
+    <section id="daftar-user-story" class="kw-stack" aria-live="polite">
         {% include 'stories/partials/_story_list.html' %}
     </section>
 </div>

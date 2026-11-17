@@ -3,136 +3,228 @@
 {% block title %}Detail User Story #{{ story.id }} — KataWarga{% endblock %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto space-y-6">
-    <!-- Breadcrumb / Back -->
-    <div class="flex items-center space-x-2 text-xs text-gray-400">
-        <a href="{{ back_url }}" class="hover:text-white">&larr; {{ back_label }}</a>
-        <span>/</span>
-        <span class="text-gray-200">User Story #{{ story.id }}</span>
+<div class="kw-stack" style="gap:18px">
+
+    <div class="kw-between">
+        <a class="kw-btn kw-btn--ghost kw-btn--sm" href="{{ back_url }}">
+            <svg aria-hidden="true"><use href="#icon-arrow-left"></use></svg>
+            {{ back_label }}
+        </a>
+        <span class="kw-chip">
+            <svg aria-hidden="true"><use href="#icon-clock"></use></svg>
+            Disusun {{ story.tanggal_disusun|date:"d M Y, H:i" }}
+        </span>
     </div>
 
-    <!-- Main Card -->
-    <div class="bg-gray-800 border border-gray-700 rounded-xl p-6 space-y-6 shadow-lg">
-        <!-- Header Info -->
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-gray-700">
-            <div>
-                <span class="text-xs text-gray-400 uppercase tracking-wider">User Story #{{ story.id }}</span>
-                <h1 class="text-xl font-bold text-white mt-1">{{ story.cluster.nama_topik }}</h1>
-                <p class="text-[11px] text-gray-500 mt-1">
-                    Sumber cluster:
-                    {% if can_view_cluster %}
-                    <a href="{% url 'extraction:cluster_detail' story.cluster.pk %}" class="text-indigo-300 hover:text-indigo-200 underline">{{ story.cluster.nama_topik }}</a>
-                    {% else %}
-                    <span class="text-gray-300">{{ story.cluster.nama_topik }}</span>
+    <div class="kw-grid kw-grid--sidebar">
+        <div class="kw-stack">
+            <article class="kw-card">
+                <div class="kw-card__head" style="align-items:flex-start">
+                    <div style="min-width:0">
+                        <p class="kw-eyebrow" style="margin-bottom:3px">User Story #{{ story.id }}</p>
+                        <h1 class="kw-title" style="font-size:20px">{{ story.cluster.nama_topik }}</h1>
+                        <p class="kw-subtitle" style="margin-top:4px">
+                            Disusun dari cluster dengan {{ metrik.n }} ulasan unik.
+                        </p>
+                    </div>
+                    <div class="kw-inline" style="justify-content:flex-end">
+                        <span data-testid="status" class="kw-badge {% if story.status_persetujuan == 'DISETUJUI' %}kw-badge--success{% elif story.status_persetujuan == 'DIABAIKAN' %}kw-badge--neutral{% else %}kw-badge--info{% endif %}">
+                            {{ story.get_status_persetujuan_display }}
+                        </span>
+                        <span data-testid="prioritas" class="kw-badge {% if story.kategori_prioritas == 'TINGGI' %}kw-badge--danger{% elif story.kategori_prioritas == 'SEDANG' %}kw-badge--warning{% else %}kw-badge--success{% endif %}">
+                            {{ story.get_kategori_prioritas_display }}
+                        </span>
+                    </div>
+                </div>
+                <div class="kw-card__body">
+                    <p style="margin:0 0 7px;color:var(--kw-muted);font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase">
+                        Kalimat User Story
+                    </p>
+                    <p style="margin:0;color:var(--kw-text);font-size:18px;font-weight:600;line-height:1.65">
+                        {{ story.kalimat }}
+                    </p>
+
+                    <div class="kw-grid kw-grid--2 kw-mt-4" style="margin-top:18px">
+                        <div class="kw-who">
+                            <span class="kw-who__label">WHO · PERAN</span>
+                            <span class="kw-who__text">{{ story.peran }}</span>
+                        </div>
+                        <div class="kw-what">
+                            <span class="kw-what__label">WHAT · KEBUTUHAN</span>
+                            <span class="kw-what__text">{{ story.kebutuhan }}</span>
+                        </div>
+                        {% if story.alasan %}
+                        <div class="kw-why" style="grid-column:1/-1">
+                            <span class="kw-why__label">WHY · ALASAN</span>
+                            <span class="kw-why__text">{{ story.alasan }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </article>
+
+            <section class="kw-card">
+                <div class="kw-card__head">
+                    <div>
+                        <h2 class="kw-card__title">Rincian perhitungan skor</h2>
+                        <p class="kw-card__desc">Skor prioritas dari frekuensi dan sentimen ulasan cluster.</p>
+                    </div>
+                    <span class="kw-badge kw-badge--accent">Total {{ story.skor_prioritas }}</span>
+                </div>
+                <div class="kw-card__body">
+                    <div class="kw-grid kw-grid--4">
+                        <div class="kw-mini-stat">
+                            <p class="kw-mini-stat__value">{{ story.skor_prioritas }}</p>
+                            <p class="kw-mini-stat__label">Total skor</p>
+                        </div>
+                        <div class="kw-mini-stat">
+                            <p class="kw-mini-stat__value">{{ metrik.n }}</p>
+                            <p class="kw-mini-stat__label">Ulasan unik (n)</p>
+                        </div>
+                        <div class="kw-mini-stat">
+                            <p class="kw-mini-stat__value">{{ metrik.f }}</p>
+                            <p class="kw-mini-stat__label">Komponen frekuensi (F)</p>
+                        </div>
+                        <div class="kw-mini-stat">
+                            <p class="kw-mini-stat__value">{{ metrik.s }}</p>
+                            <p class="kw-mini-stat__label">Rata-rata sentimen (S)</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="kw-card">
+                <div class="kw-card__head">
+                    <div>
+                        <h2 class="kw-card__title">Ulasan sumber</h2>
+                        <p class="kw-card__desc">{{ ulasan_sumber|length }} ulasan anggota cluster dimuat.</p>
+                    </div>
+                    <span class="kw-chip">
+                        <svg aria-hidden="true"><use href="#icon-database"></use></svg>
+                        Data asli
+                    </span>
+                </div>
+                <div class="kw-card__body">
+                    <div class="kw-review-list kw-scrollbar">
+                        {% for u in ulasan_sumber %}
+                        <div class="kw-review">
+                            <div class="kw-review__meta">
+                                <span>{{ u.username_reviewer|default:"Pengulas" }} · {{ u.tanggal_ulasan }}</span>
+                                <span class="kw-stars" aria-label="{{ u.skor_bintang }} dari 5 bintang">
+                                    {% for i in "12345" %}{% if forloop.counter <= u.skor_bintang %}<svg aria-hidden="true"><use href="#icon-star"></use></svg>{% endif %}{% endfor %}
+                                    <span style="margin-left:4px">{{ u.skor_bintang }}★</span>
+                                </span>
+                            </div>
+                            <p class="kw-review__text">“{{ u.isi_ulasan }}”</p>
+                        </div>
+                        {% empty %}
+                        <div class="kw-empty kw-empty--plain">
+                            <span class="kw-empty__icon"><svg aria-hidden="true"><use href="#icon-inbox"></use></svg></span>
+                            <p class="kw-empty__title">Tidak ada ulasan sumber yang dimuat</p>
+                            <p class="kw-empty__text">Cluster tidak memiliki baris ulasan yang dapat ditampilkan.</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <aside class="kw-stack">
+            <section class="kw-card">
+                <div class="kw-card__head">
+                    <h2 class="kw-card__title">Status &amp; sumber</h2>
+                </div>
+                <div class="kw-card__body kw-stack" style="gap:10px">
+                    <div class="kw-between kw-text-sm">
+                        <span class="kw-muted">Status</span>
+                        <span class="kw-text">{{ story.get_status_persetujuan_display }}</span>
+                    </div>
+                    <div class="kw-between kw-text-sm">
+                        <span class="kw-muted">Prioritas</span>
+                        <span class="kw-text">{{ story.get_kategori_prioritas_display }}</span>
+                    </div>
+                    <div class="kw-between kw-text-sm">
+                        <span class="kw-muted">Cluster</span>
+                        <span class="kw-text">{{ story.cluster.nama_topik }}</span>
+                    </div>
+                    <div class="kw-between kw-text-sm">
+                        <span class="kw-muted">Jumlah ulasan</span>
+                        <span class="kw-text">{{ story.cluster.jumlah_anggota }}</span>
+                    </div>
+                    {% if story.tanggal_persetujuan %}
+                    <div class="kw-between kw-text-sm">
+                        <span class="kw-muted">Diputuskan</span>
+                        <span class="kw-text">{{ story.tanggal_persetujuan|date:"d M Y, H:i" }}</span>
+                    </div>
                     {% endif %}
-                </p>
-            </div>
 
-            <div class="flex items-center space-x-3">
-                <!-- Status (data-testid="status", nilai persis: "Menunggu Persetujuan", "Disetujui", "Diabaikan") -->
-                <span data-testid="status" class="px-3 py-1 rounded-full text-xs font-semibold
-                    {% if story.status_persetujuan == 'DISETUJUI' %}bg-green-900/60 text-green-300 border border-green-700
-                    {% elif story.status_persetujuan == 'DIABAIKAN' %}bg-gray-700 text-gray-300 border border-gray-600
-                    {% else %}bg-blue-900/60 text-blue-300 border border-blue-700{% endif %}">
-                    {{ story.get_status_persetujuan_display }}
-                </span>
-
-                <!-- Prioritas (data-testid="prioritas", nilai persis: "Tinggi", "Sedang", "Rendah") -->
-                <span data-testid="prioritas" class="px-3 py-1 rounded-full text-xs font-semibold
-                    {% if story.kategori_prioritas == 'TINGGI' %}bg-red-900/60 text-red-300 border border-red-700
-                    {% elif story.kategori_prioritas == 'SEDANG' %}bg-yellow-900/60 text-yellow-300 border border-yellow-700
-                    {% else %}bg-green-900/60 text-green-300 border border-green-700{% endif %}">
-                    {{ story.get_kategori_prioritas_display }}
-                </span>
-            </div>
-        </div>
-
-        <!-- Kalimat User Story -->
-        <div class="bg-gray-900/60 border border-gray-700/60 rounded-lg p-5">
-            <h2 class="text-xs uppercase tracking-wider text-gray-400 mb-2 font-medium">Kalimat User Story</h2>
-            <p class="text-lg text-white font-medium leading-relaxed">
-                {{ story.kalimat }}
-            </p>
-        </div>
-
-        <!-- Rincian Skor (FR-USR-10) -->
-        <div>
-            <h2 class="text-xs uppercase tracking-wider text-gray-400 mb-3 font-medium">Rincian Perhitungan Skor</h2>
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div class="bg-gray-900/40 border border-gray-700/40 rounded-lg p-3 text-center">
-                    <span class="text-xs text-gray-400 block">Total Skor</span>
-                    <span class="text-xl font-bold text-white">{{ story.skor_prioritas }}</span>
+                    {% if can_view_cluster %}
+                    <a class="kw-btn kw-btn--secondary kw-btn--sm kw-btn--block" href="{% url 'extraction:cluster_detail' story.cluster.pk %}">
+                        <svg aria-hidden="true"><use href="#icon-clustering"></use></svg>
+                        Buka cluster sumber
+                    </a>
+                    {% endif %}
                 </div>
-                <div class="bg-gray-900/40 border border-gray-700/40 rounded-lg p-3 text-center">
-                    <span class="text-xs text-gray-400 block">Ulasan Unik (n)</span>
-                    <span class="text-xl font-bold text-gray-200">{{ metrik.n }}</span>
-                </div>
-                <div class="bg-gray-900/40 border border-gray-700/40 rounded-lg p-3 text-center">
-                    <span class="text-xs text-gray-400 block">Komponen Frekuensi (F)</span>
-                    <span class="text-xl font-bold text-blue-400">{{ metrik.f }}</span>
-                </div>
-                <div class="bg-gray-900/40 border border-gray-700/40 rounded-lg p-3 text-center">
-                    <span class="text-xs text-gray-400 block">Rata-rata Sentimen (S)</span>
-                    <span class="text-xl font-bold text-yellow-400">{{ metrik.s }}</span>
-                </div>
-            </div>
-        </div>
+            </section>
 
-        <!-- Alasan Diabaikan jika ada -->
-        {% if story.status_persetujuan == 'DIABAIKAN' and story.alasan_diabaikan %}
-        <div class="p-4 bg-red-900/30 border border-red-800 rounded-lg text-xs text-red-300">
-            <strong>Alasan Diabaikan:</strong> {{ story.alasan_diabaikan }}
-        </div>
-        {% endif %}
-
-        <!-- Aksi Persetujuan PO (HANYA untuk Product Owner & saat MENUNGGU_PERSETUJUAN) -->
-        {% if can_approve %}
-        <div class="pt-6 border-t border-gray-700 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-            <!-- Form Setujui -->
-            <form method="post" action="{% url 'stories:setujui' story.id %}">
-                {% csrf_token %}
-                <button type="submit"
-                        class="w-full sm:w-auto px-6 py-2.5 bg-green-600 hover:bg-green-700 active:bg-green-800 text-white font-medium rounded-lg text-sm transition shadow-lg flex items-center justify-center space-x-2">
-                    <span>✓</span>
-                    <span>Setujui</span>
-                </button>
-            </form>
-
-            <!-- Form Abaikan dengan alasan opsional -->
-            <form method="post" action="{% url 'stories:abaikan' story.id %}" class="flex flex-col sm:flex-row items-center gap-2">
-                {% csrf_token %}
-                <input type="text" name="alasan" placeholder="Alasan diabaikan (opsional)..."
-                       class="w-full sm:w-64 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-200 placeholder-gray-500 focus:outline-none focus:border-red-500">
-                <button type="submit"
-                        class="w-full sm:w-auto px-5 py-2.5 bg-red-600/80 hover:bg-red-700 active:bg-red-800 text-white font-medium rounded-lg text-sm transition shadow flex items-center justify-center space-x-2">
-                    <span>✕</span>
-                    <span>Abaikan</span>
-                </button>
-            </form>
-        </div>
-        {% elif story.status_persetujuan == 'MENUNGGU_PERSETUJUAN' %}
-        <div class="pt-6 border-t border-gray-700 text-xs text-gray-400">
-            User Story ini masih menunggu keputusan Product Owner. Peran Anda hanya dapat melihat detail.
-        </div>
-        {% endif %}
-    </div>
-
-    <!-- Ulasan Sumber (FR-APP-02) -->
-    <div class="bg-gray-800 border border-gray-700 rounded-xl p-6 space-y-4">
-        <h2 class="text-sm font-semibold text-white uppercase tracking-wider">Ulasan Sumber Cluster ({{ ulasan_sumber|length }})</h2>
-        <div class="space-y-3 max-h-80 overflow-y-auto pr-2">
-            {% for u in ulasan_sumber %}
-            <div class="bg-gray-900/60 border border-gray-700/50 rounded-lg p-3 text-xs space-y-1">
-                <div class="flex items-center justify-between text-gray-400">
-                    <span>{{ u.username_reviewer|default:"Pengulas" }} • {{ u.tanggal_ulasan }}</span>
-                    <span class="text-yellow-400">{{ u.skor_bintang }} ★</span>
+            {% if story.status_persetujuan == 'DIABAIKAN' and story.alasan_diabaikan %}
+            <section class="kw-card">
+                <div class="kw-card__head">
+                    <h2 class="kw-card__title">Alasan diabaikan</h2>
                 </div>
-                <p class="text-gray-200">{{ u.isi_ulasan }}</p>
-            </div>
-            {% empty %}
-            <p class="text-xs text-gray-500">Tidak ada ulasan sumber yang dimuat.</p>
-            {% endfor %}
-        </div>
+                <div class="kw-card__body">
+                    <div class="kw-banner kw-banner--danger" style="margin:0">
+                        <svg aria-hidden="true"><use href="#icon-alert"></use></svg>
+                        <p style="margin:0">{{ story.alasan_diabaikan }}</p>
+                    </div>
+                </div>
+            </section>
+            {% endif %}
+
+            {% if can_approve %}
+            <section class="kw-card">
+                <div class="kw-card__head">
+                    <div>
+                        <h2 class="kw-card__title">Keputusan Product Owner</h2>
+                        <p class="kw-card__desc">Setujui untuk masuk Sprint Backlog, atau abaikan dengan alasan.</p>
+                    </div>
+                </div>
+                <div class="kw-card__body kw-stack">
+                    <form method="post" action="{% url 'stories:setujui' story.id %}">
+                        {% csrf_token %}
+                        {% if next_url %}<input type="hidden" name="next" value="{{ next_url }}">{% endif %}
+                        <button class="kw-btn kw-btn--success kw-btn--block" type="submit">
+                            <svg aria-hidden="true"><use href="#icon-check"></use></svg>
+                            Setujui
+                        </button>
+                    </form>
+
+                    <form method="post" action="{% url 'stories:abaikan' story.id %}">
+                        {% csrf_token %}
+                        {% if next_url %}<input type="hidden" name="next" value="{{ next_url }}">{% endif %}
+                        <label class="kw-label" for="alasan">Alasan diabaikan (opsional)</label>
+                        <input class="kw-input" id="alasan" name="alasan" type="text" maxlength="500" placeholder="Contoh: kebutuhan minor, duplikat, di luar cakupan">
+                        <button class="kw-btn kw-btn--danger kw-btn--block kw-mt-2" type="submit">
+                            <svg aria-hidden="true"><use href="#icon-x"></use></svg>
+                            Abaikan
+                        </button>
+                    </form>
+                </div>
+            </section>
+            {% elif story.status_persetujuan == 'MENUNGGU_PERSETUJUAN' %}
+            <section class="kw-card">
+                <div class="kw-card__body">
+                    <div class="kw-banner kw-banner--warning" style="margin:0">
+                        <svg aria-hidden="true"><use href="#icon-clock"></use></svg>
+                        <p style="margin:0">
+                            User Story ini menunggu keputusan Product Owner.
+                            Peran Anda hanya dapat melihat detail.
+                        </p>
+                    </div>
+                </div>
+            </section>
+            {% endif %}
+        </aside>
     </div>
 </div>
 {% endblock %}

@@ -70,6 +70,30 @@ class SignUpForm(UserCreationForm):
         return user
 
 
+# FORM PROFIL
+class ProfileForm(forms.Form):
+    """Form terbatas: pengguna hanya dapat memperbarui email sendiri."""
+
+    email = forms.EmailField(
+        required=True,
+        label="Email",
+        widget=forms.EmailInput(),
+    )
+
+    def __init__(self, *args, user=None, **kwargs):
+        self.user = user
+        super().__init__(*args, **kwargs)
+
+    def clean_email(self):
+        email = self.cleaned_data["email"].strip().lower()
+        queryset = User.objects.filter(email__iexact=email)
+        if self.user is not None:
+            queryset = queryset.exclude(pk=self.user.pk)
+        if queryset.exists():
+            raise forms.ValidationError("Email sudah digunakan akun lain.")
+        return email
+
+
 def _safe_next_url(request, next_url):
     if not next_url:
         return None
@@ -145,6 +169,57 @@ def logout_view(request):
     logout(request)
 
     return redirect("accounts:login")
+
+
+# PROFIL
+@login_required
+def profile_view(request):
+    """Profil akun untuk semua peran. Hanya email yang dapat diubah sendiri."""
+    acting_role = _get_acting_role(request)
+
+    if request.method == "POST":
+        form = ProfileForm(request.POST, user=request.user)
+        if form.is_valid():
+            request.user.email = form.cleaned_data["email"]
+            request.user.save(update_fields=["email"])
+            messages.success(request, "Email profil berhasil diperbarui.")
+            return redirect("accounts:profile")
+        messages.error(request, "Periksa kembali email yang Anda masukkan.")
+    else:
+        form = ProfileForm(
+            initial={"email": request.user.email},
+            user=request.user,
+        )
+
+    return render(
+        request,
+        "accounts/profile.html",
+        {
+            "form": form,
+            "acting_role": acting_role,
+            "acting_role_label": role_label(acting_role),
+        },
+    )
+
+
+# PENGATURAN
+@login_required
+def settings_view(request):
+    """
+    Preferensi tampilan disimpan di browser (localStorage), bukan model baru.
+
+    Halaman ini tidak menampilkan kontrol backend palsu: hanya preferensi
+    tema yang benar-benar diterapkan oleh static/js/app.js.
+    """
+    acting_role = _get_acting_role(request)
+    return render(
+        request,
+        "accounts/settings.html",
+        {
+            "acting_role": acting_role,
+            "acting_role_label": role_label(acting_role),
+        },
+    )
 
 
 def _can_manage_roles(request):
