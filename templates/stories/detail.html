@@ -36,29 +36,43 @@
                         </span>
                     </div>
                 </div>
-                <div class="kw-card__body">
-                    <p style="margin:0 0 7px;color:var(--kw-muted);font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase">
-                        Kalimat User Story
-                    </p>
-                    <p style="margin:0;color:var(--kw-text);font-size:18px;font-weight:600;line-height:1.65">
-                        {{ story.kalimat }}
-                    </p>
+                <div class="kw-card__body kw-stack" style="gap:16px">
+                    <div class="kw-story-hero">
+                        <p class="kw-story-hero__label">Kalimat User Story</p>
+                        <p class="kw-story__text">{{ story.kalimat }}</p>
+                        <div class="kw-story-hero__meta">
+                            <span class="kw-chip">
+                                <svg aria-hidden="true"><use href="#icon-chart"></use></svg>
+                                Skor {{ story.skor_prioritas }}
+                            </span>
+                            <span class="kw-chip">
+                                <svg aria-hidden="true"><use href="#icon-users"></use></svg>
+                                {{ metrik.n }} ulasan bukti
+                            </span>
+                            <span class="kw-badge {% if story.kategori_prioritas == 'TINGGI' %}kw-badge--danger{% elif story.kategori_prioritas == 'SEDANG' %}kw-badge--warning{% else %}kw-badge--success{% endif %}">
+                                Prioritas {{ story.get_kategori_prioritas_display }}
+                            </span>
+                        </div>
+                    </div>
 
-                    <div class="kw-grid kw-grid--2 kw-mt-4" style="margin-top:18px">
-                        <div class="kw-who">
-                            <span class="kw-who__label">WHO · PERAN</span>
-                            <span class="kw-who__text">{{ story.peran }}</span>
+                    <div>
+                        <p class="kw-label" style="margin-bottom:8px">
+                            Elemen pendukung Who-What-Why
+                        </p>
+                        <div class="kw-grid kw-grid--2" style="gap:10px">
+                            <div class="kw-who">
+                                <span class="kw-who__label">WHO · PERAN</span>
+                                <span class="kw-who__text">{{ story.peran }}</span>
+                            </div>
+                            <div class="kw-what">
+                                <span class="kw-what__label">WHAT · KEBUTUHAN</span>
+                                <span class="kw-what__text">{{ story.kebutuhan }}</span>
+                            </div>
+                            <div class="kw-why" style="grid-column:1/-1">
+                                <span class="kw-why__label">WHY · ALASAN</span>
+                                <span class="kw-why__text">{{ story.alasan|default:"(tidak disebutkan)" }}</span>
+                            </div>
                         </div>
-                        <div class="kw-what">
-                            <span class="kw-what__label">WHAT · KEBUTUHAN</span>
-                            <span class="kw-what__text">{{ story.kebutuhan }}</span>
-                        </div>
-                        {% if story.alasan %}
-                        <div class="kw-why" style="grid-column:1/-1">
-                            <span class="kw-why__label">WHY · ALASAN</span>
-                            <span class="kw-why__text">{{ story.alasan }}</span>
-                        </div>
-                        {% endif %}
                     </div>
                 </div>
             </article>
@@ -105,18 +119,36 @@
                     </span>
                 </div>
                 <div class="kw-card__body">
-                    <div class="kw-review-list kw-scrollbar">
+                    <div class="kw-scrollbar">
                         {% for u in ulasan_sumber %}
-                        <div class="kw-review">
-                            <div class="kw-review__meta">
-                                <span>{{ u.username_reviewer|default:"Pengulas" }} · {{ u.tanggal_ulasan }}</span>
-                                <span class="kw-stars" aria-label="{{ u.skor_bintang }} dari 5 bintang">
-                                    {% for i in "12345" %}{% if forloop.counter <= u.skor_bintang %}<svg aria-hidden="true"><use href="#icon-star"></use></svg>{% endif %}{% endfor %}
-                                    <span style="margin-left:4px">{{ u.skor_bintang }}★</span>
-                                </span>
+                        {% with h=u.hasil_ekstraksi_set.all|first %}
+                        <article class="kw-evidence-review">
+                            <div class="kw-evidence-review__head">
+                                <div class="kw-inline" style="gap:6px;flex-wrap:wrap;min-width:0">
+                                    <span class="kw-chip">
+                                        <svg aria-hidden="true"><use href="#icon-app-window"></use></svg>
+                                        {{ u.aplikasi.nama_aplikasi|default:"Aplikasi" }}
+                                    </span>
+                                    <span class="kw-help" style="margin:0">
+                                        {{ u.username_reviewer|default:"Pengulas" }} · {{ u.tanggal_ulasan }}
+                                    </span>
+                                </div>
+                                <div class="kw-evidence-review__badges">
+                                    <span class="kw-stars" aria-label="{{ u.skor_bintang }} dari 5 bintang">
+                                        {% for i in "12345" %}{% if forloop.counter <= u.skor_bintang %}<svg aria-hidden="true"><use href="#icon-star"></use></svg>{% endif %}{% endfor %}
+                                        <span style="margin-left:3px">{{ u.skor_bintang }}★</span>
+                                    </span>
+                                    {% if h %}
+                                    <span class="kw-badge kw-badge--neutral">Keyakinan {{ h.skor_confidence|floatformat:2 }}</span>
+                                    <span class="kw-badge {% if h.status_validasi == 'TERVALIDASI' %}kw-badge--success{% elif h.status_validasi == 'DIHAPUS' %}kw-badge--danger{% else %}kw-badge--warning{% endif %}">
+                                        {{ h.get_status_validasi_display }}
+                                    </span>
+                                    {% endif %}
+                                </div>
                             </div>
-                            <p class="kw-review__text">“{{ u.isi_ulasan }}”</p>
-                        </div>
+                            <p class="kw-evidence-review__quote">“{{ u.isi_ulasan }}”</p>
+                        </article>
+                        {% endwith %}
                         {% empty %}
                         <div class="kw-empty kw-empty--plain">
                             <span class="kw-empty__icon"><svg aria-hidden="true"><use href="#icon-inbox"></use></svg></span>
@@ -134,29 +166,67 @@
                 <div class="kw-card__head">
                     <h2 class="kw-card__title">Status &amp; sumber</h2>
                 </div>
-                <div class="kw-card__body kw-stack" style="gap:10px">
-                    <div class="kw-between kw-text-sm">
-                        <span class="kw-muted">Status</span>
-                        <span class="kw-text">{{ story.get_status_persetujuan_display }}</span>
+                <div class="kw-card__body kw-stack" style="gap:12px">
+                    <div class="kw-detail-list">
+                        <div class="kw-detail-list__row">
+                            <span class="kw-detail-list__label">Status story</span>
+                            <span class="kw-detail-list__value">
+                                <span class="kw-badge {% if story.status_persetujuan == 'DISETUJUI' %}kw-badge--success{% elif story.status_persetujuan == 'DIABAIKAN' %}kw-badge--neutral{% else %}kw-badge--info{% endif %}">
+                                    {{ story.get_status_persetujuan_display }}
+                                </span>
+                            </span>
+                        </div>
+                        <div class="kw-detail-list__row">
+                            <span class="kw-detail-list__label">Prioritas</span>
+                            <span class="kw-detail-list__value">
+                                <span class="kw-badge {% if story.kategori_prioritas == 'TINGGI' %}kw-badge--danger{% elif story.kategori_prioritas == 'SEDANG' %}kw-badge--warning{% else %}kw-badge--success{% endif %}">
+                                    {{ story.get_kategori_prioritas_display }}
+                                </span>
+                            </span>
+                        </div>
+                        <div class="kw-detail-list__row">
+                            <span class="kw-detail-list__label">Validasi cluster</span>
+                            <span class="kw-detail-list__value">
+                                <span class="kw-badge {% if story.cluster.status_cluster == 'TERVALIDASI' %}kw-badge--success{% elif story.cluster.status_cluster == 'MENUNGGU_VALIDASI' %}kw-badge--warning{% elif story.cluster.status_cluster == 'SIGNIFIKAN' %}kw-badge--accent{% else %}kw-badge--neutral{% endif %}">
+                                    {{ story.cluster.get_status_cluster_display }}
+                                </span>
+                            </span>
+                        </div>
+                        <div class="kw-detail-list__row">
+                            <span class="kw-detail-list__label">Cluster</span>
+                            <span class="kw-detail-list__value">{{ story.cluster.nama_topik }}</span>
+                        </div>
+                        <div class="kw-detail-list__row">
+                            <span class="kw-detail-list__label">Ulasan bukti</span>
+                            <span class="kw-detail-list__value">{{ metrik.n }} unik · {{ story.cluster.jumlah_anggota }} anggota</span>
+                        </div>
+                        <div class="kw-detail-list__row">
+                            <span class="kw-detail-list__label">Skor prioritas</span>
+                            <span class="kw-detail-list__value">{{ story.skor_prioritas }}</span>
+                        </div>
+                        <div class="kw-detail-list__row">
+                            <span class="kw-detail-list__label">Frekuensi · sentimen</span>
+                            <span class="kw-detail-list__value">{{ metrik.f }} · {{ metrik.s }}</span>
+                        </div>
+                        {% with h=ulasan_sumber.0.hasil_ekstraksi_set.all|first %}
+                        {% if h %}
+                        <div class="kw-detail-list__row">
+                            <span class="kw-detail-list__label">Keyakinan sampel</span>
+                            <span class="kw-detail-list__value">{{ h.skor_confidence|floatformat:2 }}</span>
+                        </div>
+                        {% endif %}
+                        {% endwith %}
+                        <div class="kw-detail-list__row">
+                            <span class="kw-detail-list__label">Disusun</span>
+                            <span class="kw-detail-list__value">{{ story.tanggal_disusun|date:"d M Y, H:i" }}</span>
+                        </div>
+                        {% if story.tanggal_persetujuan %}
+                        <div class="kw-detail-list__row">
+                            <span class="kw-detail-list__label">Diputuskan</span>
+                            <span class="kw-detail-list__value">{{ story.tanggal_persetujuan|date:"d M Y, H:i" }}</span>
+                        </div>
+                        {% endif %}
                     </div>
-                    <div class="kw-between kw-text-sm">
-                        <span class="kw-muted">Prioritas</span>
-                        <span class="kw-text">{{ story.get_kategori_prioritas_display }}</span>
-                    </div>
-                    <div class="kw-between kw-text-sm">
-                        <span class="kw-muted">Cluster</span>
-                        <span class="kw-text">{{ story.cluster.nama_topik }}</span>
-                    </div>
-                    <div class="kw-between kw-text-sm">
-                        <span class="kw-muted">Jumlah ulasan</span>
-                        <span class="kw-text">{{ story.cluster.jumlah_anggota }}</span>
-                    </div>
-                    {% if story.tanggal_persetujuan %}
-                    <div class="kw-between kw-text-sm">
-                        <span class="kw-muted">Diputuskan</span>
-                        <span class="kw-text">{{ story.tanggal_persetujuan|date:"d M Y, H:i" }}</span>
-                    </div>
-                    {% endif %}
 
                     {% if can_view_cluster %}
                     <a class="kw-btn kw-btn--secondary kw-btn--sm kw-btn--block" href="{% url 'extraction:cluster_detail' story.cluster.pk %}">

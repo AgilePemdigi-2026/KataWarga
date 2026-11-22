@@ -85,14 +85,22 @@
                         </span>
                     </div>
                     <p class="kw-story__cluster">
-                        <svg aria-hidden="true" width="11" height="11" style="display:inline;vertical-align:-1px"><use href="#icon-clustering"></use></svg>
+                        <svg aria-hidden="true" width="11" height="11"><use href="#icon-clustering"></use></svg>
                         {{ story.cluster.nama_topik }}
                     </p>
                     <p class="kw-story__text">{{ story.kalimat }}</p>
                     <div class="kw-story__meta">
                         <span class="kw-story__score">Skor <strong>{{ story.skor_prioritas }}</strong></span>
-                        <span>· {{ story.jumlah_ulasan }} ulasan</span>
-                        <span>· {{ story.tanggal_disusun|date:"d M Y" }}</span>
+                        <span>{{ story.jumlah_ulasan }} ulasan bukti</span>
+                        {% with contoh=story.cluster.anggota_set.all|first %}
+                        {% if contoh %}
+                        <span class="kw-story__evidence">
+                            <svg aria-hidden="true"><use href="#icon-sparkles"></use></svg>
+                            Keyakinan {{ contoh.hasil_ekstraksi.skor_confidence|floatformat:2 }}
+                        </span>
+                        {% endif %}
+                        {% endwith %}
+                        <span>{{ story.tanggal_disusun|date:"d M Y" }}</span>
                     </div>
                     <div class="kw-story__actions">
                         <a class="kw-btn kw-btn--primary kw-btn--sm" href="{% url 'stories:detail' story.pk %}?next={{ next_url|urlencode }}">
@@ -132,11 +140,15 @@
                             {{ story.get_kategori_prioritas_display }}
                         </span>
                     </div>
-                    <p class="kw-story__cluster">{{ story.cluster.nama_topik }}</p>
+                    <p class="kw-story__cluster">
+                        <svg aria-hidden="true" width="11" height="11"><use href="#icon-clustering"></use></svg>
+                        {{ story.cluster.nama_topik }}
+                    </p>
                     <p class="kw-story__text">{{ story.kalimat }}</p>
                     <div class="kw-story__meta">
                         <span class="kw-story__score">Skor <strong>{{ story.skor_prioritas }}</strong></span>
-                        <span>· disetujui {{ story.tanggal_persetujuan|date:"d M Y"|default:"-" }}</span>
+                        <span>{{ story.jumlah_ulasan }} ulasan bukti</span>
+                        <span>Disetujui {{ story.tanggal_persetujuan|date:"d M Y"|default:"-" }}</span>
                     </div>
                     <div class="kw-story__actions">
                         <span class="kw-badge kw-badge--success kw-badge--dot">Disetujui</span>
@@ -169,20 +181,24 @@
             </div>
             <div class="kw-kanban-body">
                 {% for story in dismissed %}
-                <article class="kw-story" style="opacity:.82">
+                <article class="kw-story" style="opacity:.86">
                     <div class="kw-story__top">
                         <span class="kw-badge kw-badge--neutral">{{ story.aplikasi_label }}</span>
                         <span class="kw-badge kw-badge--neutral">Diabaikan</span>
                     </div>
-                    <p class="kw-story__cluster">{{ story.cluster.nama_topik }}</p>
+                    <p class="kw-story__cluster">
+                        <svg aria-hidden="true" width="11" height="11"><use href="#icon-clustering"></use></svg>
+                        {{ story.cluster.nama_topik }}
+                    </p>
                     <p class="kw-story__text">{{ story.kalimat }}</p>
                     {% if story.alasan_diabaikan %}
-                    <p class="kw-help" style="color:var(--kw-danger-text)">
-                        Alasan: {{ story.alasan_diabaikan }}
+                    <p class="kw-review-card__reason" style="margin-top:8px">
+                        <strong>Alasan:</strong> {{ story.alasan_diabaikan }}
                     </p>
                     {% endif %}
                     <div class="kw-story__meta">
                         <span class="kw-story__score">Skor <strong>{{ story.skor_prioritas }}</strong></span>
+                        <span>{{ story.jumlah_ulasan }} ulasan bukti</span>
                     </div>
                     <div class="kw-story__actions">
                         <a class="kw-btn kw-btn--secondary kw-btn--xs" href="{% url 'stories:detail' story.pk %}">Detail</a>
