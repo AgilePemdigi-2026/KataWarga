@@ -17,14 +17,17 @@
     <!-- ==================================================================
          HEADER CLUSTER
          ================================================================== -->
-    <section class="kw-card">
-        <div class="kw-card__head" style="align-items:flex-start">
+    <section class="kw-card kw-cluster-card">
+        <div class="kw-card__head kw-cluster-card__head" style="align-items:flex-start">
             <div style="min-width:0">
                 <p class="kw-eyebrow">Detail Cluster dan Komentar</p>
                 <h1 class="kw-title" style="font-size:22px;margin-top:2px">{{ cluster.nama_topik }}</h1>
-                <p class="kw-help" style="margin-top:4px">Dibuat {{ cluster.tanggal_dibuat|date:"d M Y H:i" }}</p>
+                <p class="kw-help" style="margin-top:4px">
+                    Cluster #{{ cluster.pk }} · Dibuat {{ cluster.tanggal_dibuat|date:"d M Y H:i" }}
+                </p>
             </div>
             <span class="kw-badge {% if cluster.status_cluster == 'MENUNGGU_VALIDASI' %}kw-badge--warning{% elif cluster.status_cluster == 'TERVALIDASI' %}kw-badge--success{% elif cluster.status_cluster == 'SIGNIFIKAN' %}kw-badge--accent{% else %}kw-badge--neutral{% endif %}">
+                <span class="kw-status-dot"></span>
                 {{ cluster.get_status_cluster_display }}
             </span>
         </div>
@@ -52,17 +55,18 @@
             </div>
 
             {% if story %}
-            <div class="kw-banner kw-banner--success">
-                <svg aria-hidden="true"><use href="#icon-stories"></use></svg>
-                <div style="min-width:0">
-                    <p class="kw-help" style="margin:0;text-transform:uppercase;letter-spacing:.08em;font-weight:700">User Story terkait</p>
-                    <p class="kw-text" style="margin:4px 0 0;font-size:13px">{{ story.kalimat }}</p>
-                    <p class="kw-help" style="margin-top:5px">
-                        Status: <strong class="kw-text">{{ story.get_status_persetujuan_display }}</strong>
-                        &middot; Prioritas: <strong class="kw-text">{{ story.get_kategori_prioritas_display }}</strong>
-                    </p>
+            <div class="kw-cluster-story">
+                <p class="kw-cluster-story__label">User Story terkait</p>
+                <p class="kw-cluster-story__text">{{ story.kalimat }}</p>
+                <div class="kw-inline" style="gap:6px;flex-wrap:wrap;margin-top:8px">
+                    <span class="kw-badge {% if story.status_persetujuan == 'DISETUJUI' %}kw-badge--success{% elif story.status_persetujuan == 'DIABAIKAN' %}kw-badge--neutral{% else %}kw-badge--info{% endif %}">
+                        {{ story.get_status_persetujuan_display }}
+                    </span>
+                    <span class="kw-badge {% if story.kategori_prioritas == 'TINGGI' %}kw-badge--danger{% elif story.kategori_prioritas == 'SEDANG' %}kw-badge--warning{% else %}kw-badge--success{% endif %}">
+                        Prioritas {{ story.get_kategori_prioritas_display }}
+                    </span>
                     {% if is_re or is_po or is_developer %}
-                    <a class="kw-btn kw-btn--secondary kw-btn--xs kw-mt-2" href="{% url 'stories:detail' story.pk %}">
+                    <a class="kw-btn kw-btn--secondary kw-btn--xs" href="{% url 'stories:detail' story.pk %}">
                         Lihat detail User Story
                         <svg aria-hidden="true"><use href="#icon-arrow-right"></use></svg>
                     </a>
@@ -74,7 +78,7 @@
             {% if can_compose %}
             <div class="kw-banner">
                 <svg aria-hidden="true"><use href="#icon-compose"></use></svg>
-                <div class="kw-between" style="flex:1">
+                <div class="kw-between" style="flex:1;gap:10px;flex-wrap:wrap">
                     <p style="margin:0">Cluster sudah tervalidasi Analyst dan siap disusun menjadi User Story.</p>
                     <a class="kw-btn kw-btn--primary kw-btn--sm" href="{% url 'stories:susun' %}">Susun User Story</a>
                 </div>
@@ -82,13 +86,15 @@
             {% endif %}
 
             {% if can_validate %}
-            <div class="kw-divider" style="margin:0"></div>
-            <div class="kw-between">
-                <p class="kw-help" style="margin:0;max-width:56ch">
-                    Periksa seluruh komentar di bawah sebelum mengambil keputusan. Menolak cluster
-                    akan menandai hasil ekstraksi terkait sebagai dihapus.
-                </p>
-                <div class="kw-actions">
+            <div class="kw-decision-bar">
+                <div style="min-width:0">
+                    <p class="kw-label" style="margin:0">Keputusan validasi cluster</p>
+                    <p class="kw-help" style="margin:4px 0 0;max-width:56ch">
+                        Periksa seluruh komentar di bawah sebelum mengambil keputusan. Menolak cluster
+                        akan menandai hasil ekstraksi terkait sebagai dihapus.
+                    </p>
+                </div>
+                <div class="kw-decision-actions">
                     <form method="post" action="{% url 'extraction:tolak_cluster' cluster.pk %}" data-confirm="Apakah Anda yakin ingin menolak cluster ini?">
                         {% csrf_token %}
                         <button class="kw-btn kw-btn--danger" type="submit">
@@ -139,9 +145,9 @@
 
         {% for a in anggota %}
         {% with u=a.hasil_ekstraksi.ulasan h=a.hasil_ekstraksi %}
-        <article class="kw-card">
-            <div class="kw-card__head" style="align-items:flex-start">
-                <div class="kw-inline" style="gap:7px">
+        <article class="kw-card kw-cluster-card">
+            <div class="kw-card__head kw-cluster-card__head" style="align-items:flex-start">
+                <div class="kw-inline" style="gap:7px;flex-wrap:wrap;min-width:0">
                     <span class="kw-badge kw-badge--info">
                         <svg aria-hidden="true"><use href="#icon-app-window"></use></svg>
                         {{ u.aplikasi.nama_aplikasi }}
@@ -156,29 +162,35 @@
                     </span>
                     <span class="kw-help" style="margin:0">{{ u.username_reviewer|default:"pengulas" }}</span>
                 </div>
-                <div class="kw-inline">
+                <div class="kw-evidence-review__badges">
                     <span class="kw-badge kw-badge--neutral">Keyakinan {{ h.skor_confidence|floatformat:2 }}</span>
                     <span class="kw-badge {% if h.status_validasi == 'TERVALIDASI' %}kw-badge--success{% elif h.status_validasi == 'DIHAPUS' %}kw-badge--danger{% else %}kw-badge--warning{% endif %}">
                         {{ h.get_status_validasi_display }}
                     </span>
                 </div>
             </div>
-            <div class="kw-card__body kw-stack" style="gap:11px">
-                <blockquote class="kw-review__text" style="margin:0;border-left:3px solid var(--kw-accent);padding-left:11px;font-size:12.5px;color:var(--kw-text)">
-                    "{{ u.isi_ulasan }}"
-                </blockquote>
-                <div class="kw-grid kw-grid--3" style="gap:8px">
-                    <div class="kw-who">
-                        <span class="kw-who__label">WHO</span>
-                        <span class="kw-who__text">{{ h.teks_who|default:"(implisit / pengguna)" }}</span>
-                    </div>
-                    <div class="kw-what">
-                        <span class="kw-what__label">WHAT</span>
-                        <span class="kw-what__text">{{ h.teks_what }}</span>
-                    </div>
-                    <div class="kw-why">
-                        <span class="kw-why__label">WHY</span>
-                        <span class="kw-why__text">{{ h.teks_why|default:"(tidak disebutkan)" }}</span>
+            <div class="kw-card__body kw-stack" style="gap:12px">
+                <div>
+                    <p class="kw-label" style="margin-bottom:5px">Ulasan asli</p>
+                    <blockquote class="kw-evidence-review__quote" style="margin:0">
+                        “{{ u.isi_ulasan }}”
+                    </blockquote>
+                </div>
+                <div>
+                    <p class="kw-label" style="margin-bottom:6px">Elemen hasil ekstraksi</p>
+                    <div class="kw-grid kw-grid--3" style="gap:8px">
+                        <div class="kw-who">
+                            <span class="kw-who__label">WHO</span>
+                            <span class="kw-who__text">{{ h.teks_who|default:"(implisit / pengguna)" }}</span>
+                        </div>
+                        <div class="kw-what">
+                            <span class="kw-what__label">WHAT</span>
+                            <span class="kw-what__text">{{ h.teks_what }}</span>
+                        </div>
+                        <div class="kw-why">
+                            <span class="kw-why__label">WHY</span>
+                            <span class="kw-why__text">{{ h.teks_why|default:"(tidak disebutkan)" }}</span>
+                        </div>
                     </div>
                 </div>
             </div>

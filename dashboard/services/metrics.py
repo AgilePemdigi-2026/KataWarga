@@ -1,7 +1,7 @@
 """Perhitungan metrik ringkas untuk Dashboard Overview."""
 from datetime import date
 
-from django.db.models import Avg, Count, Max
+from django.db.models import Avg, Count, Max, Q
 from django.utils import timezone
 
 from backlog.models import BacklogItem
@@ -87,12 +87,17 @@ def _data_tren_bulanan():
 
 def _distribusi_rating():
     """Distribusi bintang 1–5 per aplikasi dengan satu query agregat."""
-    hasil = {
-        row["aplikasi_id"]: row
-        for row in Ulasan.objects.values("aplikasi_id", "skor_bintang").annotate(
-            jumlah=Count("id")
-        )
-    }
+    rows = (
+        Ulasan.objects
+        .filter(skor_bintang__gte=1, skor_bintang__lte=5)
+        .values("aplikasi_id", "skor_bintang")
+        .annotate(jumlah=Count("id"))
+    )
+    hasil = {}
+    for row in rows:
+        app_id = row["aplikasi_id"]
+        bintang = int(row["skor_bintang"])
+        hasil[(app_id, bintang)] = row["jumlah"]
     return hasil
 
 
@@ -133,23 +138,33 @@ def ringkasan_dashboard():
 
     aplikasi = list(
         Aplikasi.objects.annotate(
-            rata_rating=Avg("ulasan_set__skor_bintang"),
+            rata_rating=Avg(
+                "ulasan_set__skor_bintang",
+                filter=Q(ulasan_set__skor_bintang__gte=1, ulasan_set__skor_bintang__lte=5),
+            ),
             jumlah_ulasan=Count("ulasan_set"),
         ).order_by("nama_aplikasi")
     )
 
     distribusi = _distribusi_rating()
     for app in aplikasi:
-        total_app = app.jumlah_ulasan or 0
+        # Rata-rata rating konsisten dengan ulasan valid 1-5 (atau 0.0 jika belum ada rating valid)
+        app.rata_rating = round(float(app.rata_rating), 1) if app.rata_rating is not None else 0.0
+
+        # Hitung total ulasan dengan rating valid untuk denominator yang akurat
+        bintang_counts = [distribusi.get((app.pk, b), 0) for b in range(1, 6)]
+        total_berating = sum(bintang_counts)
+        denominator = total_berating if total_berating > 0 else 0
+
         rincian = []
         for bintang in range(5, 0, -1):
-            jumlah = distribusi.get(
-                (app.pk, bintang), {}
-            ).get("jumlah", 0)
+            jumlah = distribusi.get((app.pk, bintang), 0)
+            persen = _persen(jumlah, denominator) if denominator > 0 else 0.0
             rincian.append({
                 "bintang": bintang,
                 "jumlah": jumlah,
-                "persen": _persen(jumlah, total_app),
+                "persen": persen,
+                "persen_css": f"{persen:.1f}",
             })
         app.distribusi_bintang = rincian
 

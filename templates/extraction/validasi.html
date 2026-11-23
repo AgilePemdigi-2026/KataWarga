@@ -35,58 +35,81 @@
 
     <div class="kw-stack" style="gap:16px">
         {% for cluster in clusters %}
-        <article class="kw-card">
-            <div class="kw-card__head" style="align-items:flex-start">
+        <article class="kw-card kw-cluster-card">
+            <div class="kw-card__head kw-cluster-card__head" style="align-items:flex-start">
                 <div style="min-width:0">
                     <p class="kw-eyebrow" style="margin-bottom:2px">Cluster #{{ cluster.id }}</p>
                     <h2 class="kw-card__title" style="font-size:16px">{{ cluster.nama_topik }}</h2>
-                    <a class="kw-help" style="display:inline-block;margin-top:3px;color:var(--kw-accent-text);text-decoration:underline" href="{% url 'extraction:cluster_detail' cluster.pk %}">
-                        Buka detail &amp; seluruh komentar &rarr;
-                    </a>
+                    <div class="kw-inline" style="gap:6px;flex-wrap:wrap;margin-top:6px">
+                        <span class="kw-chip">
+                            <svg aria-hidden="true"><use href="#icon-users"></use></svg>
+                            {{ cluster.jumlah_anggota }} ulasan
+                        </span>
+                        <span class="kw-chip">
+                            <svg aria-hidden="true"><use href="#icon-chart"></use></svg>
+                            Skor {{ cluster.skor_signifikansi }}
+                        </span>
+                        <a class="kw-help" style="color:var(--kw-accent-text);text-decoration:underline" href="{% url 'extraction:cluster_detail' cluster.pk %}">
+                            Buka detail &amp; seluruh komentar &rarr;
+                        </a>
+                    </div>
                 </div>
-                <div class="kw-inline">
-                    <span class="kw-badge kw-badge--warning">
-                        <span class="kw-status-dot"></span>
-                        Menunggu Validasi Analyst
-                    </span>
-                    <span class="kw-badge kw-badge--neutral">{{ cluster.jumlah_anggota }} ulasan</span>
-                </div>
+                <span class="kw-badge kw-badge--warning">
+                    <span class="kw-status-dot"></span>
+                    Menunggu Validasi Analyst
+                </span>
             </div>
 
-            <div class="kw-card__body kw-stack" style="gap:11px">
-                <h3 class="kw-label" style="margin:0">Sampel Anggota Cluster &amp; Elemen Ekstraksi (FR-VAL-02)</h3>
+            <div class="kw-card__body kw-stack" style="gap:12px">
+                <div class="kw-between" style="align-items:flex-end">
+                    <div>
+                        <h3 class="kw-label" style="margin:0">Sampel Anggota Cluster &amp; Elemen Ekstraksi (FR-VAL-02)</h3>
+                        <p class="kw-help" style="margin:4px 0 0">Maksimal lima ulasan pertama sebagai bahan pemeriksaan.</p>
+                    </div>
+                    <span class="kw-badge kw-badge--neutral">{{ cluster.anggota_set.all|length }} baris ekstraksi</span>
+                </div>
 
                 {% for anggota in cluster.anggota_set.all|slice:":5" %}
-                <div class="kw-review">
-                    <div class="kw-review__meta">
-                        <span class="kw-inline" style="gap:5px">
-                            <svg aria-hidden="true" style="width:12px;height:12px"><use href="#icon-app-window"></use></svg>
-                            {{ anggota.hasil_ekstraksi.ulasan.aplikasi.nama_aplikasi }}
-                        </span>
-                        <span class="kw-inline" style="gap:5px">
-                            <svg aria-hidden="true" style="width:10px;height:10px"><use href="#icon-star"></use></svg>
-                            {{ anggota.hasil_ekstraksi.ulasan.skor_bintang }}
-                            &middot; {{ anggota.hasil_ekstraksi.ulasan.tanggal_ulasan }}
-                        </span>
+                {% with h=anggota.hasil_ekstraksi u=anggota.hasil_ekstraksi.ulasan %}
+                <article class="kw-evidence-review">
+                    <div class="kw-evidence-review__head">
+                        <div class="kw-inline" style="gap:6px;flex-wrap:wrap;min-width:0">
+                            <span class="kw-chip">
+                                <svg aria-hidden="true"><use href="#icon-app-window"></use></svg>
+                                {{ u.aplikasi.nama_aplikasi }}
+                            </span>
+                            <span class="kw-chip">
+                                <svg aria-hidden="true"><use href="#icon-star"></use></svg>
+                                {{ u.skor_bintang }}
+                            </span>
+                            <span class="kw-help" style="margin:0">{{ u.tanggal_ulasan }}</span>
+                        </div>
+                        <div class="kw-evidence-review__badges">
+                            <span class="kw-badge kw-badge--neutral">Keyakinan {{ h.skor_confidence|floatformat:2 }}</span>
+                            <span class="kw-badge {% if h.status_validasi == 'TERVALIDASI' %}kw-badge--success{% elif h.status_validasi == 'DIHAPUS' %}kw-badge--danger{% else %}kw-badge--warning{% endif %}">
+                                {{ h.get_status_validasi_display }}
+                            </span>
+                        </div>
                     </div>
+
+                    <p class="kw-evidence-review__quote">“{{ u.isi_ulasan }}”</p>
 
                     <div class="kw-grid kw-grid--3 kw-mt-2" style="gap:7px">
                         <div class="kw-who">
                             <span class="kw-who__label">WHO</span>
-                            <span class="kw-who__text">{{ anggota.hasil_ekstraksi.teks_who|default:"(implisit / pengguna)" }}</span>
+                            <span class="kw-who__text">{{ h.teks_who|default:"(implisit / pengguna)" }}</span>
                         </div>
                         <div class="kw-what">
                             <span class="kw-what__label">WHAT</span>
-                            <span class="kw-what__text" style="font-weight:600">{{ anggota.hasil_ekstraksi.teks_what }}</span>
+                            <span class="kw-what__text" style="font-weight:600">{{ h.teks_what }}</span>
                         </div>
                         <div class="kw-why">
                             <span class="kw-why__label">WHY</span>
-                            <span class="kw-why__text">{{ anggota.hasil_ekstraksi.teks_why|default:"(tidak disebutkan)" }}</span>
+                            <span class="kw-why__text">{{ h.teks_why|default:"(tidak disebutkan)" }}</span>
                         </div>
                     </div>
-
-                    <p class="kw-review__text kw-mt-2" style="font-style:italic">"{{ anggota.hasil_ekstraksi.ulasan.isi_ulasan }}"</p>
-                </div>
+                </article>
+                {% endwith %}
                 {% endfor %}
 
                 {% if cluster.jumlah_anggota > 5 %}
@@ -95,12 +118,14 @@
                 </p>
                 {% endif %}
 
-                <div class="kw-divider" style="margin:2px 0 0"></div>
-                <div class="kw-between">
-                    <p class="kw-help" style="margin:0">
-                        Setujui jika elemen Who/What/Why mewakili komentar anggota.
-                    </p>
-                    <div class="kw-actions">
+                <div class="kw-decision-bar">
+                    <div style="min-width:0">
+                        <p class="kw-label" style="margin:0">Keputusan Analyst</p>
+                        <p class="kw-help" style="margin:4px 0 0">
+                            Setujui jika elemen Who/What/Why mewakili komentar anggota.
+                        </p>
+                    </div>
+                    <div class="kw-decision-actions">
                         <form method="post" action="{% url 'extraction:tolak_cluster' cluster.pk %}" data-confirm="Apakah Anda yakin ingin menolak cluster ini?">
                             {% csrf_token %}
                             <button class="kw-btn kw-btn--danger kw-btn--sm" type="submit">

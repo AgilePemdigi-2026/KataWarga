@@ -21,8 +21,8 @@
 {% if stories %}
 <div class="kw-grid kw-grid--2">
     {% for story in stories %}
-    <article class="kw-card">
-        <div class="kw-card__head">
+    <article class="kw-card kw-cluster-card">
+        <div class="kw-card__head kw-cluster-card__head">
             <div style="min-width:0">
                 <div class="kw-inline" style="gap:6px">
                     <span class="kw-badge {% if story.kategori_prioritas == 'TINGGI' %}kw-badge--danger{% elif story.kategori_prioritas == 'SEDANG' %}kw-badge--warning{% else %}kw-badge--success{% endif %}">
@@ -37,14 +37,34 @@
             </div>
             <span class="kw-badge kw-badge--accent">Skor {{ story.skor_prioritas }}</span>
         </div>
-        <div class="kw-card__body">
-            <p style="margin:0;color:var(--kw-text-2);font-size:12.5px;line-height:1.7">
-                {{ story.kalimat }}
-            </p>
-            <div class="kw-inline kw-mt-4" style="justify-content:space-between">
+        <div class="kw-card__body kw-stack" style="gap:12px">
+            <div class="kw-cluster-story">
+                <p class="kw-cluster-story__label">Kalimat User Story</p>
+                <p class="kw-story__text">{{ story.kalimat }}</p>
+            </div>
+
+            <div class="kw-inline kw-text-xs kw-muted">
                 <span class="kw-chip">
                     <svg aria-hidden="true"><use href="#icon-users"></use></svg>
-                    {{ story.cluster.jumlah_anggota }} ulasan cluster
+                    {{ story.cluster.jumlah_anggota }} ulasan bukti
+                </span>
+                <span class="kw-chip">
+                    <svg aria-hidden="true"><use href="#icon-clustering"></use></svg>
+                    {{ story.cluster.get_status_cluster_display }}
+                </span>
+                {% with contoh=story.cluster.anggota_set.all|first %}
+                {% if contoh %}
+                <span class="kw-chip">
+                    <svg aria-hidden="true"><use href="#icon-sparkles"></use></svg>
+                    Keyakinan {{ contoh.hasil_ekstraksi.skor_confidence|floatformat:2 }}
+                </span>
+                {% endif %}
+                {% endwith %}
+            </div>
+
+            <div class="kw-inline" style="justify-content:space-between">
+                <span class="kw-help" style="margin:0">
+                    Evidence review tersedia di halaman detail.
                 </span>
                 <a class="kw-btn kw-btn--secondary kw-btn--sm" href="{% url 'stories:detail' story.pk %}">
                     Lihat detail

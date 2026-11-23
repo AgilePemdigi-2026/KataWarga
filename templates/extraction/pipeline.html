@@ -27,9 +27,9 @@
                 <svg aria-hidden="true"><use href="#icon-upload"></use></svg>
                 Impor CSV
             </a>
-            <form method="post" action="{% url 'extraction:run_pipeline' %}">
+            <form method="post" action="{% url 'extraction:run_pipeline' %}" id="pipeline-run-form" data-pipeline-form>
                 {% csrf_token %}
-                <button type="submit" class="kw-btn kw-btn--primary">
+                <button type="submit" class="kw-btn kw-btn--primary" id="btn-run-pipeline">
                     <svg aria-hidden="true"><use href="#icon-play"></use></svg>
                     <span>Jalankan Ekstraksi</span>
                 </button>
@@ -42,6 +42,69 @@
             {% endif %}
         </div>
     </header>
+
+    <!-- ==================================================================
+         INDIKATOR PROGRES PIPELINE (Accessible & Honest Status)
+         ================================================================== -->
+    <div id="pipeline-progress" class="kw-pipeline-progress" role="status" aria-live="polite" hidden>
+        <div class="kw-pipeline-progress__card">
+            <div class="kw-pipeline-progress__header">
+                <span class="kw-spinner kw-spinner--lg" aria-hidden="true"></span>
+                <div>
+                    <h2 class="kw-pipeline-progress__title">Sedang Menjalankan Ekstraksi &amp; Clustering</h2>
+                    <p class="kw-pipeline-progress__desc">
+                        Server sedang memproses ulasan yang lolos filter: mengekstraksi elemen Who-What-Why
+                        dan mengelompokkannya ke dalam cluster topik semantik.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Indeterminate bar (Jujur: tidak memakai persentase palsu) -->
+            <div class="kw-progress kw-progress--indeterminate" aria-label="Proses ekstraksi sedang berjalan di server">
+                <div class="kw-progress__bar"></div>
+            </div>
+
+            <div class="kw-pipeline-stages" aria-label="Alur pemrosesan ulasan">
+                <div class="kw-pipeline-stage kw-pipeline-stage--done">
+                    <span class="kw-pipeline-stage__icon">
+                        <svg aria-hidden="true" width="12" height="12"><use href="#icon-check"></use></svg>
+                    </span>
+                    <div class="kw-pipeline-stage__info">
+                        <strong>1. Pengambilan Review</strong>
+                        <span>Ulasan tersimpan di database</span>
+                    </div>
+                </div>
+                <div class="kw-pipeline-stage kw-pipeline-stage--done">
+                    <span class="kw-pipeline-stage__icon">
+                        <svg aria-hidden="true" width="12" height="12"><use href="#icon-check"></use></svg>
+                    </span>
+                    <div class="kw-pipeline-stage__info">
+                        <strong>2. Filtering Review</strong>
+                        <span>Filter relevansi &amp; spam selesai</span>
+                    </div>
+                </div>
+                <div class="kw-pipeline-stage kw-pipeline-stage--active">
+                    <span class="kw-pipeline-stage__icon">
+                        <span class="kw-spinner" style="width:12px;height:12px;border-width:2px"></span>
+                    </span>
+                    <div class="kw-pipeline-stage__info">
+                        <strong>3. Ekstraksi AI &amp; Clustering</strong>
+                        <span>Sedang diproses oleh server…</span>
+                    </div>
+                </div>
+                <div class="kw-pipeline-stage kw-pipeline-stage--pending">
+                    <span class="kw-pipeline-stage__icon">4</span>
+                    <div class="kw-pipeline-stage__info">
+                        <strong>4. Validasi Analyst</strong>
+                        <span>Menunggu keputusan validasi</span>
+                    </div>
+                </div>
+            </div>
+            <p class="kw-help" style="margin:8px 0 0;text-align:right">
+                Harap jangan menutup atau me-refresh halaman sampai proses selesai.
+            </p>
+        </div>
+    </div>
 
     <!-- ==================================================================
          STATISTIK PIPELINE
@@ -168,13 +231,27 @@
                 <h2 class="kw-section-title">Review Asli &amp; Hasil Ekstraksi</h2>
                 <p class="kw-section-desc">Setiap ulasan menampilkan status filter dan elemen Who-What-Why.</p>
             </div>
-            <span class="kw-badge kw-badge--neutral">{{ page_obj.paginator.count }} review</span>
+            <div class="kw-inline" aria-label="Legenda status review">
+                <span class="kw-status kw-status--success">
+                    <span class="kw-status-dot"></span>
+                    Lolos
+                </span>
+                <span class="kw-status kw-status--danger">
+                    <span class="kw-status-dot"></span>
+                    Dibuang
+                </span>
+                <span class="kw-status kw-status--neutral">
+                    <span class="kw-status-dot"></span>
+                    Belum Diproses
+                </span>
+                <span class="kw-badge kw-badge--neutral">{{ page_obj.paginator.count }} review</span>
+            </div>
         </div>
 
         {% for u in page_obj %}
-        <article class="kw-card">
-            <div class="kw-card__head" style="align-items:flex-start">
-                <div class="kw-inline" style="gap:7px">
+        <article class="kw-card kw-review-card kw-review-card--{% if u.status_filter == 'LOLOS' %}lolos{% elif u.status_filter == 'DIBUANG' %}dibuang{% else %}belum{% endif %}">
+            <div class="kw-card__head kw-review-card__head">
+                <div class="kw-review-card__meta">
                     <span class="kw-badge kw-badge--info">
                         <svg aria-hidden="true"><use href="#icon-app-window"></use></svg>
                         {{ u.aplikasi.nama_aplikasi }}
@@ -185,23 +262,58 @@
                     </span>
                     <span class="kw-chip">
                         <svg aria-hidden="true"><use href="#icon-star"></use></svg>
-                        {{ u.skor_bintang }}
+                        {{ u.skor_bintang }}/5
                     </span>
                     <span class="kw-help" style="margin:0">{{ u.username_reviewer|default:"pengulas" }}</span>
                 </div>
-                <span class="kw-badge {% if u.status_filter == 'LOLOS' %}kw-badge--success{% else %}kw-badge--warning{% endif %}">
+
+                {% if u.status_filter == 'LOLOS' %}
+                <span class="kw-status kw-status--success">
+                    <span class="kw-status-dot"></span>
                     {{ u.get_status_filter_display }}
                 </span>
+                {% elif u.status_filter == 'DIBUANG' %}
+                <span class="kw-status kw-status--danger">
+                    <span class="kw-status-dot"></span>
+                    {{ u.get_status_filter_display }}
+                </span>
+                {% else %}
+                <span class="kw-status kw-status--neutral">
+                    <span class="kw-status-dot"></span>
+                    Belum Diproses
+                </span>
+                {% endif %}
             </div>
-            <div class="kw-card__body kw-stack" style="gap:11px">
-                <blockquote class="kw-review__text" style="margin:0;font-size:12.5px;color:var(--kw-text)">
-                    "{{ u.isi_ulasan }}"
+
+            <div class="kw-card__body kw-stack" style="gap:12px">
+                <blockquote class="kw-review-card__quote">
+                    “{{ u.isi_ulasan }}”
                 </blockquote>
 
-                {% for h in u.hasil_ekstraksi_set.all %}
-                <div class="kw-card" style="background:var(--kw-surface-2)">
-                    <div class="kw-card__body kw-stack" style="gap:9px">
-                        <div class="kw-grid kw-grid--3" style="gap:8px">
+                {% if u.alasan_dibuang %}
+                <p class="kw-review-card__reason">
+                    <strong>Alasan dibuang:</strong> {{ u.alasan_dibuang }}
+                </p>
+                {% endif %}
+
+                <div class="kw-stack" style="gap:8px">
+                    <p class="kw-label" style="margin:0">Hasil ekstraksi Who-What-Why</p>
+
+                    {% for h in u.hasil_ekstraksi_set.all %}
+                    <div class="kw-extraction">
+                        <div class="kw-extraction__head">
+                            <p class="kw-extraction__title">Ekstraksi #{{ h.pk }}</p>
+                            <div class="kw-extraction__meta">
+                                <span class="kw-badge kw-badge--neutral">
+                                    Keyakinan {{ h.skor_confidence|floatformat:2 }}
+                                </span>
+                                <span class="kw-badge {% if h.status_validasi == 'TERVALIDASI' %}kw-badge--success{% elif h.status_validasi == 'DIHAPUS' %}kw-badge--danger{% else %}kw-badge--warning{% endif %}">
+                                    {{ h.get_status_validasi_display }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="kw-grid kw-grid--3" style="gap:8px;margin-top:10px">
                             <div class="kw-who">
                                 <span class="kw-who__label">WHO</span>
                                 <span class="kw-who__text">{{ h.teks_who|default:"(implisit / pengguna)" }}</span>
@@ -215,25 +327,20 @@
                                 <span class="kw-why__text">{{ h.teks_why|default:"(tidak disebutkan)" }}</span>
                             </div>
                         </div>
-                        <div class="kw-inline kw-text-xs kw-muted">
-                            <span>Keyakinan <strong class="kw-text">{{ h.skor_confidence|floatformat:2 }}</strong></span>
-                            <span>&middot;</span>
-                            <span>{{ h.get_status_validasi_display }}</span>
-                            <span>&middot;</span>
-                            <span>
-                                Cluster:
-                                {% for anggota in h.cluster_set.all %}
-                                <a class="kw-accent" style="text-decoration:underline" href="{% url 'extraction:cluster_detail' anggota.cluster.pk %}">{{ anggota.cluster.nama_topik }}</a>{% if not forloop.last %}, {% endif %}
-                                {% empty %}
-                                <span class="kw-muted-2">belum dikelompokkan</span>
-                                {% endfor %}
-                            </span>
+
+                        <div class="kw-extraction__clusters" style="margin-top:9px">
+                            <span>Cluster:</span>
+                            {% for anggota in h.cluster_set.all %}
+                            <a href="{% url 'extraction:cluster_detail' anggota.cluster.pk %}">{{ anggota.cluster.nama_topik }}</a>{% if not forloop.last %}, {% endif %}
+                            {% empty %}
+                            <span class="kw-muted-2">belum dikelompokkan</span>
+                            {% endfor %}
                         </div>
                     </div>
+                    {% empty %}
+                    <p class="kw-help" style="margin:0;font-style:italic">Belum ada hasil ekstraksi untuk review ini.</p>
+                    {% endfor %}
                 </div>
-                {% empty %}
-                <p class="kw-help" style="margin:0;font-style:italic">Belum ada hasil ekstraksi untuk review ini.</p>
-                {% endfor %}
             </div>
         </article>
         {% empty %}

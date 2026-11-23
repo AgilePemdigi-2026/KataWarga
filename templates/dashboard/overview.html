@@ -115,7 +115,7 @@
         <div class="kw-stack">
 
             <!-- REVIEW SENTIMENT CHART -->
-            <section class="kw-card">
+            <section class="kw-card kw-card--chart">
 
                 <div class="kw-card__head">
                     <div>
@@ -123,7 +123,7 @@
                             Review Sentiment vs. User Story Generation
                         </h2>
                         <p class="kw-card__desc">
-                            Enam bulan terakhir. Sentimen memakai skala 1–5;
+                            Enam bulan terakhir. Sentimen memakai skala 0–5;
                             jumlah User Story memakai sumbu kanan.
                         </p>
                     </div>
@@ -157,7 +157,7 @@
                                 class="kw-legend__swatch"
                                 style="background:var(--kw-accent)"
                             ></span>
-                            Rata-rata sentimen (skala 1–5)
+                            Rata-rata sentimen (skala 0–5)
                         </span>
 
                         <span class="kw-legend__item">
@@ -168,6 +168,11 @@
                             User Story dibuat
                         </span>
                     </div>
+
+                    <p class="kw-chart-caption">
+                        Sumbu kiri menampilkan rata-rata rating ulasan; sumbu kanan
+                        menampilkan jumlah User Story yang dibuat pada bulan yang sama.
+                    </p>
 
                     {{ metrics.chart_data|json_script:"dashboard-chart-data" }}
 
@@ -227,6 +232,7 @@
                 <div class="kw-card__body">
 
                     {% for cluster in metrics.top_clusters %}
+                    {% widthratio cluster.jumlah_anggota metrics.total_ulasan 100 as cluster_persen %}
                     <div class="kw-bar-row">
 
                         <div class="kw-bar-row__meta">
@@ -251,10 +257,17 @@
                             </span>
                         </div>
 
-                        <div class="kw-progress">
+                        <div
+                            class="kw-progress"
+                            role="progressbar"
+                            aria-label="{{ cluster.nama_topik }}: {{ cluster_persen|default:'0' }}% dari total ulasan"
+                            aria-valuemin="0"
+                            aria-valuemax="100"
+                            aria-valuenow="{{ cluster_persen|default:'0' }}"
+                        >
                             <span
                                 class="kw-progress__bar"
-                                style="width:{% if metrics.total_ulasan %}{% widthratio cluster.jumlah_anggota metrics.total_ulasan 100 %}{% else %}0{% endif %}%;background:var(--kw-accent)"
+                                style="width:{{ cluster_persen|default:'0' }}%;background:var(--kw-accent)"
                             ></span>
                         </div>
 
@@ -298,6 +311,10 @@
                             Distribusi bintang 1–5 dari ulasan tersimpan.
                         </p>
                     </div>
+
+                    <span class="kw-badge kw-badge--neutral">
+                        {{ metrics.aplikasi|length }} aplikasi
+                    </span>
                 </div>
 
                 <div class="kw-card__body">
@@ -306,54 +323,77 @@
 
                     <div class="kw-app-item">
 
-                        <div class="kw-app-item__name">
-                            <span class="kw-truncate">
-                                {{ app.nama_aplikasi }}
-                            </span>
-
-                            <span class="kw-badge kw-badge--warning">
-                                <svg
-                                    aria-hidden="true"
-                                    style="width:10px;height:10px"
-                                >
-                                    <use href="#icon-star"></use>
-                                </svg>
-                                {{ app.rata_rating|floatformat:1|default:"—" }}
-                            </span>
-                        </div>
-
-                        <p class="kw-app-item__meta">
-                            {{ app.jumlah_ulasan }} ulasan
-                        </p>
-
-                        {% for row in app.distribusi_bintang %}
-
-                        <div class="kw-star-row">
-
-                            <span class="kw-nowrap">
-                                {{ row.bintang }}
-                                <svg
-                                    aria-hidden="true"
-                                    style="display:inline;width:9px;height:9px;vertical-align:-1px"
-                                >
-                                    <use href="#icon-star"></use>
-                                </svg>
-                            </span>
-
-                            <div class="kw-progress">
-                                <span
-                                    class="kw-progress__bar"
-                                    style="width:{{ row.persen }}%;background:var(--kw-warning)"
-                                ></span>
+                        <div class="kw-app-item__head">
+                            <div class="kw-app-item__identity">
+                                <span class="kw-app-item__icon" aria-hidden="true">
+                                    <svg><use href="#icon-app-window"></use></svg>
+                                </span>
+                                <div style="min-width:0">
+                                    <p class="kw-app-item__name">
+                                        <span class="kw-truncate" title="{{ app.nama_aplikasi }}">
+                                            {{ app.nama_aplikasi }}
+                                        </span>
+                                    </p>
+                                    <p class="kw-app-item__meta">
+                                        {{ app.jumlah_ulasan }} ulasan tersimpan
+                                    </p>
+                                </div>
                             </div>
 
-                            <span class="kw-star-row__count kw-tabular">
-                                {{ row.jumlah }}
-                            </span>
-
+                            <div
+                                class="kw-app-item__rating"
+                                aria-label="Rata-rata rating {{ app.rata_rating|floatformat:1|default:'belum ada' }} dari 5"
+                            >
+                                <span class="kw-app-item__rating-value">
+                                    {{ app.rata_rating|floatformat:1|default:"—" }}
+                                </span>
+                                <span class="kw-app-item__rating-scale">/5</span>
+                                <span class="kw-stars" aria-hidden="true">
+                                    <svg><use href="#icon-star"></use></svg>
+                                </span>
+                            </div>
                         </div>
 
-                        {% endfor %}
+                        <div
+                            class="kw-star-distribution"
+                            role="list"
+                            aria-label="Distribusi rating {{ app.nama_aplikasi }}"
+                        >
+                            {% for row in app.distribusi_bintang %}
+                            <div
+                                class="kw-star-row"
+                                role="listitem"
+                                aria-label="{{ row.bintang }} bintang: {{ row.jumlah }} ulasan, {{ row.persen|floatformat:1 }}%"
+                            >
+                                <span class="kw-star-row__label">
+                                    {{ row.bintang }}
+                                    <svg aria-hidden="true"><use href="#icon-star"></use></svg>
+                                </span>
+
+                                <div
+                                    class="kw-progress kw-progress--star"
+                                    role="progressbar"
+                                    aria-valuenow="{{ row.persen|floatformat:1 }}"
+                                    aria-valuemin="0"
+                                    aria-valuemax="100"
+                                    aria-label="{{ row.bintang }} bintang: {{ row.persen|floatformat:1 }}%"
+                                >
+                                    <span
+                                        class="kw-progress__bar {% if row.persen > 0 %}kw-progress__bar--filled{% endif %}"
+                                        style="width:{{ row.persen_css }}%"
+                                    ></span>
+                                </div>
+
+                                <span class="kw-star-row__count kw-tabular">
+                                    {{ row.jumlah }}
+                                </span>
+
+                                <span class="kw-star-row__percent kw-tabular">
+                                    {{ row.persen|floatformat:0 }}%
+                                </span>
+                            </div>
+                            {% endfor %}
+                        </div>
                     </div>
 
                     {% empty %}

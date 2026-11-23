@@ -136,7 +136,28 @@
                     event.preventDefault();
                     dropdown.classList.remove("is-open");
                     closeDropdown(dropdown, true);
+                    return;
                 }
+
+                if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+
+                var items = Array.prototype.slice
+                    .call(panel.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled])'))
+                    .filter(function (element) {
+                        return element.offsetParent !== null;
+                    });
+                if (!items.length) return;
+
+                event.preventDefault();
+                var currentIndex = items.indexOf(document.activeElement);
+                var nextIndex;
+
+                if (event.key === "ArrowDown") {
+                    nextIndex = currentIndex < 0 ? 0 : (currentIndex + 1) % items.length;
+                } else {
+                    nextIndex = currentIndex < 0 ? items.length - 1 : (currentIndex - 1 + items.length) % items.length;
+                }
+                items[nextIndex].focus();
             });
         });
 
@@ -319,7 +340,11 @@
 
         stack.querySelectorAll("[data-toast]").forEach(function (toast, index) {
             var close = toast.querySelector("[data-toast-close]");
+            var timer = null;
+
             var remove = function () {
+                if (timer) window.clearTimeout(timer);
+                timer = null;
                 toast.classList.add("is-leaving");
                 window.setTimeout(function () {
                     toast.remove();
@@ -327,62 +352,261 @@
                 }, 150);
             };
 
+            var schedule = function () {
+                if (timer || toast.classList.contains("kw-toast--error")) return;
+                timer = window.setTimeout(remove, 6500 + index * 400);
+            };
+
+            var pause = function () {
+                if (!timer) return;
+                window.clearTimeout(timer);
+                timer = null;
+            };
+
             if (close) close.addEventListener("click", remove);
 
-            if (!toast.classList.contains("kw-toast--error")) {
-                window.setTimeout(remove, 6500 + index * 400);
-            }
+            toast.addEventListener("mouseenter", pause);
+            toast.addEventListener("mouseleave", schedule);
+            toast.addEventListener("focusin", pause);
+            toast.addEventListener("focusout", function (event) {
+                if (!toast.contains(event.relatedTarget)) schedule();
+            });
+
+            schedule();
         });
     }
 
     /* ---------------------------------------------------------------------
        Forms: confirmation, genuine loading feedback, auto-submit
        --------------------------------------------------------------------- */
+    function restoreSubmitter(submitter) {
+        if (!submitter) return;
+        if (!document.body.contains(submitter)) return;
+
+        // ONLY restore elements that were explicitly put into loading state by KataWarga
+        // to avoid accidentally re-enabling buttons disabled by form validation, permissions, or business logic
+        if (submitter.dataset.kwLoading !== "1") return;
+
+        delete submitter.dataset.kwLoading;
+        submitter.disabled = false;
+        submitter.classList.remove("is-loading");
+        submitter.removeAttribute("aria-busy");
+
+        if (submitter.tagName === "INPUT") {
+            if (typeof submitter.dataset.originalValue !== "undefined") {
+                submitter.value = submitter.dataset.originalValue;
+                delete submitter.dataset.originalValue;
+            }
+        } else {
+            if (typeof submitter.dataset.originalHtml !== "undefined") {
+                submitter.innerHTML = submitter.dataset.originalHtml;
+                delete submitter.dataset.originalHtml;
+            } else {
+                var spinner = submitter.querySelector(".kw-spinner");
+                if (spinner) spinner.remove();
+            }
+        }
+
+        if (submitter.form) {
+            delete submitter.form.dataset.kwSubmitting;
+        }
+    }
+
     function initForms() {
+        var activeConfirm = null;
+
+        function closeConfirm(confirmed) {
+            if (!activeConfirm) return;
+
+            var state = activeConfirm;
+            activeConfirm = null;
+            state.dialog.classList.remove("is-open");
+            state.dialog.setAttribute("aria-hidden", "true");
+            document.body.style.overflow = "";
+
+            window.setTimeout(function () {
+                if (state.dialog.parentNode) state.dialog.parentNode.removeChild(state.dialog);
+            }, 160);
+
+            if (confirmed) {
+                state.form.dataset.kwConfirmed = "1";
+                window.setTimeout(function () {
+                    if (state.form.dataset.kwConfirmed === "1") {
+                        delete state.form.dataset.kwConfirmed;
+                    }
+                }, 0);
+
+                if (typeof state.form.requestSubmit === "function") {
+                    if (state.submitter && state.submitter.form === state.form) {
+                        state.form.requestSubmit(state.submitter);
+                    } else {
+                        state.form.requestSubmit();
+                    }
+                } else {
+                    state.form.submit();
+                }
+                return;
+            }
+
+            if (state.previousFocus && typeof state.previousFocus.focus === "function") {
+                state.previousFocus.focus({ preventScroll: true });
+            }
+        }
+
+        function openConfirm(message, form, submitter) {
+            if (activeConfirm) closeConfirm(false);
+
+            var previousFocus = submitter || document.activeElement;
+            var dialog = document.createElement("div");
+            dialog.className = "kw-modal kw-confirm is-open";
+            dialog.setAttribute("aria-hidden", "false");
+            dialog.innerHTML = [
+                '<div class="kw-modal__backdrop" data-confirm-cancel></div>',
+                '<div class="kw-modal__panel kw-confirm__panel" role="alertdialog" aria-modal="true" aria-labelledby="kw-confirm-title" aria-describedby="kw-confirm-message" tabindex="-1">',
+                '  <div class="kw-modal__head">',
+                '    <div class="kw-inline" style="align-items:flex-start;gap:11px">',
+                '      <span class="kw-confirm__icon" aria-hidden="true"><svg><use href="#icon-alert"></use></svg></span>',
+                '      <div>',
+                '        <h2 class="kw-modal__title" id="kw-confirm-title">Konfirmasi tindakan</h2>',
+                '        <p class="kw-modal__desc">Periksa kembali sebelum melanjutkan.</p>',
+                '      </div>',
+                '    </div>',
+                '    <button class="kw-iconbtn kw-modal__close" type="button" data-confirm-cancel aria-label="Tutup dialog"><svg aria-hidden="true"><use href="#icon-close"></use></svg></button>',
+                '  </div>',
+                '  <div class="kw-modal__body">',
+                '    <p class="kw-confirm__message" id="kw-confirm-message"></p>',
+                '  </div>',
+                '  <div class="kw-modal__foot">',
+                '    <button class="kw-btn kw-btn--secondary" type="button" data-confirm-cancel>Batal</button>',
+                '    <button class="kw-btn kw-btn--danger" type="button" data-confirm-accept>Ya, lanjutkan</button>',
+                '  </div>',
+                '</div>'
+            ].join("");
+
+            var messageNode = dialog.querySelector("#kw-confirm-message");
+            if (messageNode) messageNode.textContent = message;
+
+            document.body.appendChild(dialog);
+            document.body.style.overflow = "hidden";
+            activeConfirm = {
+                dialog: dialog,
+                form: form,
+                submitter: submitter,
+                previousFocus: previousFocus
+            };
+
+            dialog.querySelectorAll("[data-confirm-cancel]").forEach(function (node) {
+                node.addEventListener("click", function () {
+                    closeConfirm(false);
+                });
+            });
+
+            var accept = dialog.querySelector("[data-confirm-accept]");
+            if (accept) {
+                accept.addEventListener("click", function () {
+                    closeConfirm(true);
+                });
+            }
+
+            var cancel = dialog.querySelector(".kw-modal__foot [data-confirm-cancel]");
+            if (cancel) {
+                cancel.focus({ preventScroll: true });
+            } else if (accept) {
+                accept.focus({ preventScroll: true });
+            }
+
+            dialog.addEventListener("keydown", function (event) {
+                if (event.key === "Escape") {
+                    event.preventDefault();
+                    closeConfirm(false);
+                    return;
+                }
+                if (event.key !== "Tab") return;
+
+                var items = Array.prototype.slice
+                    .call(dialog.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'))
+                    .filter(function (element) {
+                        return element.offsetParent !== null;
+                    });
+                if (!items.length) return;
+
+                var first = items[0];
+                var last = items[items.length - 1];
+                if (event.shiftKey && document.activeElement === first) {
+                    event.preventDefault();
+                    last.focus();
+                } else if (!event.shiftKey && document.activeElement === last) {
+                    event.preventDefault();
+                    first.focus();
+                }
+            });
+        }
+
         document.addEventListener("submit", function (event) {
             var form = event.target;
             if (!(form instanceof HTMLFormElement)) return;
 
+            // Guard against multiple submissions while request is in progress
+            if (form.dataset.kwSubmitting === "1") {
+                event.preventDefault();
+                return;
+            }
 
             var confirmationSource = event.submitter ||
                 form.querySelector('button[type="submit"], input[type="submit"]');
-
             var confirmMessage =
                 (confirmationSource && confirmationSource.dataset.confirm) ||
                 form.dataset.confirm;
+            var alreadyConfirmed = form.dataset.kwConfirmed === "1";
 
-            if (confirmMessage && !window.confirm(confirmMessage)) {
+            if (alreadyConfirmed) delete form.dataset.kwConfirmed;
+
+            if (confirmMessage && !alreadyConfirmed) {
                 event.preventDefault();
+                openConfirm(confirmMessage, form, confirmationSource);
                 return;
             }
 
             if (form.method.toLowerCase() !== "post" || form.dataset.loading === "off") return;
 
             var submitter = event.submitter || form.querySelector('button[type="submit"], input[type="submit"]');
-            if (!submitter || submitter.disabled) return;
-
-            if (!submitter.dataset.originalHtml) {
-                submitter.dataset.originalHtml = submitter.innerHTML;
+            if (!submitter || submitter.disabled || submitter.classList.contains("is-loading")) {
+                if (submitter && (submitter.disabled || submitter.classList.contains("is-loading"))) {
+                    event.preventDefault();
+                }
+                return;
             }
 
+            // Save original label according to element type
             if (submitter.tagName === "INPUT") {
+                if (typeof submitter.dataset.originalValue === "undefined") {
+                    submitter.dataset.originalValue = submitter.value;
+                }
                 submitter.value = "Memproses…";
             } else {
+                if (typeof submitter.dataset.originalHtml === "undefined") {
+                    submitter.dataset.originalHtml = submitter.innerHTML;
+                }
                 submitter.innerHTML = '<span class="kw-spinner" aria-hidden="true"></span><span>Memproses…</span>';
             }
+
+            // Mark with specific dataset marker so restoreSubmitter only restores actual loading buttons
+            submitter.dataset.kwLoading = "1";
             submitter.classList.add("is-loading");
             submitter.setAttribute("aria-busy", "true");
             submitter.disabled = true;
+            form.dataset.kwSubmitting = "1";
 
-            /* Enable again for bfcache restores and for HTMX responses that
-               keep the current DOM. No fake delay is introduced. */
-            window.setTimeout(function () {
-                if (!document.body.contains(submitter)) return;
-                submitter.disabled = false;
-                submitter.classList.remove("is-loading");
-                submitter.removeAttribute("aria-busy");
-                submitter.innerHTML = submitter.dataset.originalHtml;
-            }, 12000);
+            // If submitting the pipeline extraction form, display the real indeterminate progress indicator
+            if (form.id === "pipeline-run-form" || form.hasAttribute("data-pipeline-form")) {
+                var progressBox = document.getElementById("pipeline-progress");
+                if (progressBox) {
+                    progressBox.hidden = false;
+                    if (typeof progressBox.scrollIntoView === "function") {
+                        progressBox.scrollIntoView({ behavior: "smooth", block: "nearest" });
+                    }
+                }
+            }
         });
 
         document.querySelectorAll("[data-auto-submit]").forEach(function (control) {
@@ -392,10 +616,24 @@
         });
 
         window.addEventListener("pageshow", function () {
-            document.querySelectorAll(".kw-btn.is-loading").forEach(function (button) {
-                if (button.dataset.originalHtml) button.innerHTML = button.dataset.originalHtml;
-                button.classList.remove("is-loading");
-                button.disabled = false;
+            // Only restore elements that were explicitly placed into loading state by KataWarga
+            // Never re-enable buttons that were disabled by form validation, permission, or business rules
+            document.querySelectorAll('[data-kw-loading="1"], .is-loading[data-kw-loading="1"]').forEach(function (btn) {
+                restoreSubmitter(btn);
+            });
+
+            document.querySelectorAll("form[data-kw-submitting]").forEach(function (form) {
+                delete form.dataset.kwSubmitting;
+            });
+
+            var progressBox = document.getElementById("pipeline-progress");
+            if (progressBox) progressBox.hidden = true;
+
+            document.querySelectorAll(".kw-spinner").forEach(function (spinner) {
+                var parentBtn = spinner.closest("button, a, .kw-btn");
+                if (parentBtn && parentBtn.dataset.kwLoading !== "1") {
+                    spinner.remove();
+                }
             });
         });
     }
@@ -452,6 +690,50 @@
         return element;
     }
 
+    function seriesUsesIntegerValues(item) {
+        return /story|cerita/i.test(String(item.unit || "")) ||
+            /story|cerita/i.test(String(item.name || ""));
+    }
+
+    function formatChartValue(value, integerOnly) {
+        var number = Number(value);
+        if (!Number.isFinite(number)) return "0";
+        if (integerOnly) return String(Math.round(number));
+        var rounded = Math.round(number * 10) / 10;
+        return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+    }
+
+    function niceAxisStep(rawStep, integerOnly) {
+        if (!Number.isFinite(rawStep) || rawStep <= 0) return 1;
+        var magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
+        var residual = rawStep / magnitude;
+        var niceResidual;
+
+        if (residual <= 1) niceResidual = 1;
+        else if (residual <= 2) niceResidual = 2;
+        else if (residual <= 2.5) niceResidual = 2.5;
+        else if (residual <= 5) niceResidual = 5;
+        else niceResidual = 10;
+
+        var step = niceResidual * magnitude;
+        if (integerOnly) step = Math.max(1, Math.round(step));
+        return step;
+    }
+
+    function buildAxisTicks(maxValue, integerOnly) {
+        var max = Math.max(Number(maxValue) || 0, 1);
+        var step = niceAxisStep(max / 5, integerOnly);
+        var top = Math.ceil(max / step) * step;
+        if (top <= 0) top = step;
+
+        var ticks = [];
+        for (var value = 0; value <= top + step * 0.001; value += step) {
+            ticks.push(Math.round(value * 1000) / 1000);
+            if (ticks.length > 24) break;
+        }
+        return { ticks: ticks, top: top };
+    }
+
     function initCharts() {
         document.querySelectorAll("[data-chart-source]").forEach(function (container) {
             var source = document.getElementById(container.dataset.chartSource);
@@ -468,153 +750,273 @@
             var series = payload.series || [];
             if (!labels.length || !series.length) return;
 
-            var width = 720;
-            var height = 260;
-            var padding = { top: 18, right: 30, bottom: 30, left: 38 };
-            var plotWidth = width - padding.left - padding.right;
-            var plotHeight = height - padding.top - padding.bottom;
-            var maxValue = Number(payload.max_value || 0);
-
-            series.forEach(function (item) {
-                item.values.forEach(function (value) {
-                    maxValue = Math.max(maxValue, Number(value) || 0);
-                });
-            });
-            if (maxValue <= 0) maxValue = 1;
-
             var primarySeries = series[0];
-            var primaryMax = Number(primarySeries.max || maxValue) || 1;
             var secondarySeries = series.length > 1 ? series[1] : null;
-            var secondaryMax = secondarySeries
-                ? Number(secondarySeries.max || maxValue) || 1
-                : 1;
+            var primaryInteger = seriesUsesIntegerValues(primarySeries);
+            var secondaryInteger = secondarySeries
+                ? seriesUsesIntegerValues(secondarySeries)
+                : false;
 
-            var svg = buildSvgElement("svg", {
-                viewBox: "0 0 " + width + " " + height,
-                role: "img",
-                "aria-label": payload.aria_label || "Grafik tren bulanan"
+            var primaryMax = Number(primarySeries.max) || 0;
+            (primarySeries.values || []).forEach(function (value) {
+                primaryMax = Math.max(primaryMax, Number(value) || 0);
             });
+            if (primaryMax <= 0) primaryMax = 1;
 
-            for (var tick = 0; tick <= 4; tick += 1) {
-                var y = padding.top + (plotHeight / 4) * tick;
-                svg.appendChild(buildSvgElement("line", {
-                    x1: padding.left,
-                    x2: width - padding.right,
-                    y1: y,
-                    y2: y,
-                    class: "kw-chart-grid"
-                }));
-
-                var label = buildSvgElement("text", {
-                    x: padding.left - 9,
-                    y: y + 3,
-                    "text-anchor": "end",
-                    class: "kw-chart-axis"
+            var secondaryMax = 0;
+            if (secondarySeries) {
+                secondaryMax = Number(secondarySeries.max) || 0;
+                (secondarySeries.values || []).forEach(function (value) {
+                    secondaryMax = Math.max(secondaryMax, Number(value) || 0);
                 });
-                label.textContent = String(Math.round(primaryMax - (primaryMax / 4) * tick));
-                svg.appendChild(label);
-
-                if (secondarySeries && secondaryMax !== primaryMax) {
-                    var secondaryLabel = buildSvgElement("text", {
-                        x: width - padding.right + 7,
-                        y: y + 3,
-                        "text-anchor": "start",
-                        class: "kw-chart-axis"
-                    });
-                    secondaryLabel.textContent = String(Math.round(secondaryMax - (secondaryMax / 4) * tick));
-                    svg.appendChild(secondaryLabel);
-                }
+                if (secondaryMax <= 0) secondaryMax = 1;
             }
 
-            var step = labels.length > 1 ? plotWidth / (labels.length - 1) : 0;
-            labels.forEach(function (labelText, index) {
-                var x = padding.left + step * index;
-                var label = buildSvgElement("text", {
-                    x: x,
-                    y: height - 8,
-                    "text-anchor": "middle",
-                    class: "kw-chart-axis"
-                });
-                label.textContent = labelText;
-                svg.appendChild(label);
-            });
+            var primaryAxis = buildAxisTicks(primaryMax, primaryInteger);
+            var secondaryAxis = secondarySeries
+                ? buildAxisTicks(secondaryMax, secondaryInteger)
+                : null;
 
-            var tooltips = [];
+            var renderTimer = null;
+            var lastSize = "";
 
-            series.forEach(function (item) {
-                var itemMax = Number(item.max || maxValue) || 1;
-                var points = item.values.map(function (value, index) {
-                    var x = padding.left + (labels.length > 1 ? step * index : plotWidth / 2);
-                    var y = padding.top + plotHeight - (Number(value) / itemMax) * plotHeight;
-                    return { x: x, y: y, value: Number(value) };
-                });
+            function render() {
+                var width = Math.max(container.clientWidth || 0, 320);
+                var height = Math.max(container.clientHeight || 0, 220);
+                var padding = {
+                    top: 26,
+                    right: secondarySeries ? 44 : 24,
+                    bottom: 34,
+                    left: 44
+                };
+                var plotWidth = width - padding.left - padding.right;
+                var plotHeight = height - padding.top - padding.bottom;
 
-                if (points.length > 1) {
-                    var line = points.map(function (point) { return point.x + "," + point.y; }).join(" ");
-                    svg.appendChild(buildSvgElement("polyline", {
-                        points: line,
-                        class: "kw-chart-line",
-                        style: "stroke:" + item.color
-                    }));
+                function yFor(value, top) {
+                    return padding.top + plotHeight - (Number(value) / top) * plotHeight;
                 }
 
-                points.forEach(function (point, index) {
-                    var circle = buildSvgElement("circle", {
-                        cx: point.x,
-                        cy: point.y,
-                        r: 4,
-                        class: "kw-chart-point",
-                        style: "fill:" + item.color,
-                        tabindex: "0",
-                        role: "img",
-                        "aria-label": labels[index] + ": " + point.value + " " + (item.unit || "")
-                    });
+                var svg = buildSvgElement("svg", {
+                    viewBox: "0 0 " + width + " " + height,
+                    role: "img",
+                    "aria-label": payload.aria_label || "Grafik tren bulanan"
+                });
 
-                    var tooltip = document.createElement("div");
-                    tooltip.className = "kw-chart-tooltip";
-                    tooltip.hidden = true;
+                var title = buildSvgElement("title", {});
+                title.textContent = payload.aria_label || "Grafik tren bulanan";
+                svg.appendChild(title);
+
+                if (secondarySeries) {
+                    var leftTitle = buildSvgElement("text", {
+                        x: padding.left,
+                        y: 11,
+                        "text-anchor": "start",
+                        class: "kw-chart-axis-title"
+                    });
+                    leftTitle.textContent = "Sentimen";
+                    svg.appendChild(leftTitle);
+
+                    var rightTitle = buildSvgElement("text", {
+                        x: width - padding.right,
+                        y: 11,
+                        "text-anchor": "end",
+                        class: "kw-chart-axis-title"
+                    });
+                    rightTitle.textContent = "User Story";
+                    svg.appendChild(rightTitle);
+                }
+
+                primaryAxis.ticks.forEach(function (tick) {
+                    var y = yFor(tick, primaryAxis.top);
+                    svg.appendChild(buildSvgElement("line", {
+                        x1: padding.left,
+                        x2: width - padding.right,
+                        y1: y,
+                        y2: y,
+                        class: "kw-chart-grid"
+                    }));
+
+                    var label = buildSvgElement("text", {
+                        x: padding.left - 9,
+                        y: y + 3,
+                        "text-anchor": "end",
+                        class: "kw-chart-axis"
+                    });
+                    label.textContent = formatChartValue(tick, primaryInteger);
+                    svg.appendChild(label);
+                });
+
+                if (secondaryAxis) {
+                    secondaryAxis.ticks.forEach(function (tick) {
+                        var y = yFor(tick, secondaryAxis.top);
+                        svg.appendChild(buildSvgElement("line", {
+                            x1: width - padding.right,
+                            x2: width - padding.right + 4,
+                            y1: y,
+                            y2: y,
+                            class: "kw-chart-grid"
+                        }));
+
+                        var label = buildSvgElement("text", {
+                            x: width - padding.right + 8,
+                            y: y + 3,
+                            "text-anchor": "start",
+                            class: "kw-chart-axis"
+                        });
+                        label.textContent = formatChartValue(tick, secondaryInteger);
+                        svg.appendChild(label);
+                    });
+                }
+
+                var step = labels.length > 1 ? plotWidth / (labels.length - 1) : 0;
+                labels.forEach(function (labelText, index) {
+                    var x = padding.left + step * index;
+                    var label = buildSvgElement("text", {
+                        x: x,
+                        y: height - 8,
+                        "text-anchor": "middle",
+                        class: "kw-chart-axis"
+                    });
+                    label.textContent = labelText;
+                    svg.appendChild(label);
+                });
+
+                var tooltip = document.createElement("div");
+                tooltip.className = "kw-chart-tooltip";
+                tooltip.hidden = true;
+
+                function showTooltip(point, index) {
+                    tooltip.textContent = "";
 
                     var heading = document.createElement("strong");
+                    heading.className = "kw-chart-tooltip__title";
                     heading.textContent = String(labels[index]);
                     tooltip.appendChild(heading);
 
                     series.forEach(function (entry) {
-                        tooltip.appendChild(document.createElement("br"));
+                        var row = document.createElement("div");
+                        row.className = "kw-chart-tooltip__row";
 
-                        var text = document.createElement("span");
-                        text.textContent =
-                            String(entry.name) + ": " +
-                            String(entry.values[index]) +
-                            (entry.unit ? " " + String(entry.unit) : "");
+                        var swatch = document.createElement("span");
+                        swatch.className = "kw-chart-tooltip__swatch";
+                        swatch.style.background = entry.color;
+                        row.appendChild(swatch);
 
-                        tooltip.appendChild(text);
+                        var name = document.createElement("span");
+                        name.textContent = String(entry.name);
+                        row.appendChild(name);
+
+                        var value = document.createElement("strong");
+                        value.className = "kw-chart-tooltip__value";
+                        value.textContent = formatChartValue(
+                            entry.values[index],
+                            seriesUsesIntegerValues(entry)
+                        ) + (entry.unit ? " " + String(entry.unit) : "");
+                        row.appendChild(value);
+
+                        tooltip.appendChild(row);
                     });
 
+                    tooltip.hidden = false;
+                    var leftPercent = width ? (point.x / width) * 100 : 50;
+                    tooltip.style.left = Math.min(Math.max(leftPercent, 18), 82) + "%";
+                    tooltip.style.top = ((point.y / height) * 100) + "%";
+                }
 
-                    function showTooltip() {
-                        tooltip.hidden = false;
-                        tooltip.style.left = (point.x / width) * 100 + "%";
-                        tooltip.style.top = (point.y / height) * 100 + "%";
+                function hideTooltip() {
+                    tooltip.hidden = true;
+                }
+
+                series.forEach(function (item, seriesIndex) {
+                    var axis = seriesIndex === 0
+                        ? primaryAxis
+                        : (secondaryAxis || primaryAxis);
+                    var points = item.values.map(function (value, index) {
+                        var x = padding.left + (labels.length > 1 ? step * index : plotWidth / 2);
+                        return {
+                            x: x,
+                            y: yFor(Number(value) || 0, axis.top),
+                            value: Number(value) || 0
+                        };
+                    });
+
+                    if (points.length > 1) {
+                        if (seriesIndex === 0) {
+                            var areaPoints = points.map(function (point) {
+                                return point.x + "," + point.y;
+                            }).join(" ");
+                            areaPoints += " " + points[points.length - 1].x + "," + (padding.top + plotHeight);
+                            areaPoints += " " + points[0].x + "," + (padding.top + plotHeight);
+                            svg.appendChild(buildSvgElement("polygon", {
+                                points: areaPoints,
+                                class: "kw-chart-area",
+                                style: "fill:" + item.color
+                            }));
+                        }
+
+                        var line = points.map(function (point) {
+                            return point.x + "," + point.y;
+                        }).join(" ");
+                        svg.appendChild(buildSvgElement("polyline", {
+                            points: line,
+                            class: "kw-chart-line",
+                            style: "stroke:" + item.color
+                        }));
                     }
 
-                    function hideTooltip() {
-                        tooltip.hidden = true;
-                    }
+                    points.forEach(function (point, index) {
+                        var circle = buildSvgElement("circle", {
+                            cx: point.x,
+                            cy: point.y,
+                            r: 4,
+                            class: "kw-chart-point",
+                            style: "fill:" + item.color,
+                            tabindex: "0",
+                            role: "img",
+                            "aria-label": labels[index] + ": " +
+                                formatChartValue(point.value, seriesUsesIntegerValues(item)) +
+                                (item.unit ? " " + String(item.unit) : "")
+                        });
 
-                    circle.addEventListener("mouseenter", showTooltip);
-                    circle.addEventListener("mouseleave", hideTooltip);
-                    circle.addEventListener("focus", showTooltip);
-                    circle.addEventListener("blur", hideTooltip);
-                    svg.appendChild(circle);
-                    tooltips.push(tooltip);
+                        circle.addEventListener("mouseenter", function () {
+                            showTooltip(point, index);
+                        });
+                        circle.addEventListener("mouseleave", hideTooltip);
+                        circle.addEventListener("focus", function () {
+                            showTooltip(point, index);
+                        });
+                        circle.addEventListener("blur", hideTooltip);
+                        circle.addEventListener("keydown", function (event) {
+                            if (event.key === "Escape") hideTooltip();
+                        });
+                        svg.appendChild(circle);
+                    });
                 });
-            });
 
-            container.innerHTML = "";
-            container.appendChild(svg);
-            tooltips.forEach(function (tooltip) {
+                container.innerHTML = "";
+                container.appendChild(svg);
                 container.appendChild(tooltip);
-            });
+            }
+
+            function scheduleRender() {
+                if (renderTimer) window.cancelAnimationFrame(renderTimer);
+                renderTimer = window.requestAnimationFrame(render);
+            }
+
+            render();
+
+            if (window.ResizeObserver) {
+                var observer = new ResizeObserver(function () {
+                    var nextSize = container.clientWidth + "x" + container.clientHeight;
+                    if (nextSize === lastSize) return;
+                    lastSize = nextSize;
+                    scheduleRender();
+                });
+                lastSize = container.clientWidth + "x" + container.clientHeight;
+                observer.observe(container);
+            } else {
+                window.addEventListener("resize", scheduleRender);
+            }
         });
     }
 
@@ -735,15 +1137,53 @@
     function initHtmxIntegration() {
         if (!window.htmx) return;
 
+        function htmxTarget(elt) {
+            var selector = elt.getAttribute("hx-target");
+            if (!selector) return null;
+            try {
+                return document.querySelector(selector);
+            } catch (error) {
+                return null;
+            }
+        }
+
+        function restoreFromHtmxEvent(event) {
+            var elt = (event.detail && event.detail.elt) || event.target;
+            if (!elt) return;
+
+            // Only restore submitters that have data-kw-loading="1" to avoid enabling non-loading buttons
+            if (elt.tagName === "FORM") {
+                delete elt.dataset.kwSubmitting;
+                elt.querySelectorAll('[data-kw-loading="1"]').forEach(function (btn) {
+                    restoreSubmitter(btn);
+                });
+            } else {
+                restoreSubmitter(elt);
+                if (elt.form) {
+                    delete elt.form.dataset.kwSubmitting;
+                    elt.form.querySelectorAll('[data-kw-loading="1"]').forEach(function (btn) {
+                        restoreSubmitter(btn);
+                    });
+                }
+            }
+
+            var indicator = elt.querySelector ? elt.querySelector("[data-htmx-indicator]") : null;
+            if (indicator) indicator.hidden = true;
+            var target = htmxTarget(elt);
+            if (target) target.setAttribute("aria-busy", "false");
+        }
+
         document.body.addEventListener("htmx:beforeRequest", function (event) {
             var indicator = event.detail.elt.querySelector("[data-htmx-indicator]");
             if (indicator) indicator.hidden = false;
+            var target = htmxTarget(event.detail.elt);
+            if (target) target.setAttribute("aria-busy", "true");
         });
 
-        document.body.addEventListener("htmx:afterRequest", function (event) {
-            var indicator = event.detail.elt.querySelector("[data-htmx-indicator]");
-            if (indicator) indicator.hidden = true;
-        });
+        document.body.addEventListener("htmx:afterRequest", restoreFromHtmxEvent);
+        document.body.addEventListener("htmx:responseError", restoreFromHtmxEvent);
+        document.body.addEventListener("htmx:sendError", restoreFromHtmxEvent);
+        document.body.addEventListener("htmx:timeout", restoreFromHtmxEvent);
     }
 
     function boot() {

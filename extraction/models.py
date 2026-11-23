@@ -35,6 +35,10 @@ class Cluster(models.Model):
         DIABAIKAN = 'DIABAIKAN', 'Diabaikan'
 
     nama_topik = models.CharField(max_length=200)
+    nama_topik_manual = models.BooleanField(
+        default=False,
+        help_text="Menandai apakah label nama topik diubah atau ditentukan secara manual oleh analis/admin.",
+    )
     jumlah_anggota = models.PositiveIntegerField(default=0)
     skor_signifikansi = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     status_cluster = models.CharField(max_length=20, choices=StatusCluster.choices, default=StatusCluster.MENUNGGU_VALIDASI)

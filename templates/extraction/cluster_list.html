@@ -57,11 +57,21 @@
 
     <div class="kw-grid kw-grid--2">
         {% for cluster in page_obj %}
-        <article class="kw-card">
-            <div class="kw-card__head" style="align-items:flex-start">
+        <article class="kw-card kw-cluster-card">
+            <div class="kw-card__head kw-cluster-card__head">
                 <div style="min-width:0">
                     <p class="kw-eyebrow" style="margin-bottom:2px">Cluster #{{ cluster.pk }}</p>
                     <h2 class="kw-card__title" style="font-size:15px">{{ cluster.nama_topik }}</h2>
+                    <div class="kw-inline kw-text-xs" style="margin-top:7px">
+                        <span class="kw-chip">
+                            <svg aria-hidden="true"><use href="#icon-users"></use></svg>
+                            {{ cluster.jumlah_anggota }} anggota
+                        </span>
+                        <span class="kw-chip">
+                            <svg aria-hidden="true"><use href="#icon-chart"></use></svg>
+                            Skor {{ cluster.skor_signifikansi }}
+                        </span>
+                    </div>
                 </div>
                 <span class="kw-badge {% if cluster.status_cluster == 'MENUNGGU_VALIDASI' %}kw-badge--warning{% elif cluster.status_cluster == 'TERVALIDASI' %}kw-badge--success{% elif cluster.status_cluster == 'SIGNIFIKAN' %}kw-badge--accent{% else %}kw-badge--neutral{% endif %}">
                     {{ cluster.get_status_cluster_display }}
@@ -70,18 +80,32 @@
             <div class="kw-card__body kw-stack" style="gap:12px">
                 <div class="kw-inline kw-text-xs">
                     <span class="kw-chip">
-                        <svg aria-hidden="true"><use href="#icon-users"></use></svg>
-                        {{ cluster.jumlah_anggota }} ulasan
-                    </span>
-                    <span class="kw-chip">
-                        <svg aria-hidden="true"><use href="#icon-chart"></use></svg>
-                        Skor {{ cluster.skor_signifikansi }}
-                    </span>
-                    <span class="kw-chip">
                         <svg aria-hidden="true"><use href="#icon-clock"></use></svg>
-                        {{ cluster.tanggal_dibuat|date:"d M Y H:i" }}
+                        Dibuat {{ cluster.tanggal_dibuat|date:"d M Y H:i" }}
                     </span>
                 </div>
+
+                {% with story=cluster.user_story %}
+                {% if story %}
+                <div class="kw-cluster-story">
+                    <p class="kw-cluster-story__label">Representative User Story</p>
+                    <p class="kw-cluster-story__text">{{ story.kalimat }}</p>
+                    <div class="kw-inline" style="margin-top:7px">
+                        <span class="kw-badge {% if story.status_persetujuan == 'DISETUJUI' %}kw-badge--success{% elif story.status_persetujuan == 'DIABAIKAN' %}kw-badge--neutral{% else %}kw-badge--info{% endif %}">
+                            {{ story.get_status_persetujuan_display }}
+                        </span>
+                        <span class="kw-badge {% if story.kategori_prioritas == 'TINGGI' %}kw-badge--danger{% elif story.kategori_prioritas == 'SEDANG' %}kw-badge--warning{% else %}kw-badge--success{% endif %}">
+                            Prioritas {{ story.get_kategori_prioritas_display }}
+                        </span>
+                    </div>
+                </div>
+                {% else %}
+                <p class="kw-help" style="margin:0">
+                    Cluster ini belum memiliki User Story. Validasi cluster terlebih dahulu
+                    agar dapat disusun menjadi User Story.
+                </p>
+                {% endif %}
+                {% endwith %}
 
                 <div>
                     <p class="kw-label" style="margin-bottom:6px">Contoh komentar anggota</p>
@@ -89,12 +113,12 @@
                     <div class="kw-review">
                         <div class="kw-review__meta">
                             <span>{{ anggota.hasil_ekstraksi.ulasan.aplikasi.nama_aplikasi }}</span>
-                            <span>
+                            <span class="kw-inline" style="gap:3px">
                                 <svg aria-hidden="true" style="display:inline;width:9px;height:9px;vertical-align:-1px"><use href="#icon-star"></use></svg>
-                                {{ anggota.hasil_ekstraksi.ulasan.skor_bintang }}
+                                {{ anggota.hasil_ekstraksi.ulasan.skor_bintang }}/5
                             </span>
                         </div>
-                        <p class="kw-review__text">"{{ anggota.hasil_ekstraksi.ulasan.isi_ulasan|truncatechars:180 }}"</p>
+                        <p class="kw-review__text">“{{ anggota.hasil_ekstraksi.ulasan.isi_ulasan|truncatechars:180 }}”</p>
                     </div>
                     {% empty %}
                     <p class="kw-help" style="margin:0">Belum ada anggota cluster.</p>
