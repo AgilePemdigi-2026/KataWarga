@@ -363,17 +363,24 @@
                             <div
                                 class="kw-star-row"
                                 role="listitem"
-                                aria-label="{{ row.bintang }} bintang: {{ row.jumlah }} ulasan, {{ row.persen }} persen"
+                                aria-label="{{ row.bintang }} bintang: {{ row.jumlah }} ulasan, {{ row.persen|floatformat:1 }}%"
                             >
                                 <span class="kw-star-row__label">
                                     {{ row.bintang }}
                                     <svg aria-hidden="true"><use href="#icon-star"></use></svg>
                                 </span>
 
-                                <div class="kw-progress kw-progress--star" aria-hidden="true">
+                                <div
+                                    class="kw-progress kw-progress--star"
+                                    role="progressbar"
+                                    aria-valuenow="{{ row.persen|floatformat:1 }}"
+                                    aria-valuemin="0"
+                                    aria-valuemax="100"
+                                    aria-label="{{ row.bintang }} bintang: {{ row.persen|floatformat:1 }}%"
+                                >
                                     <span
                                         class="kw-progress__bar {% if row.persen > 0 %}kw-progress__bar--filled{% endif %}"
-                                        style="width:{{ row.persen }}%"
+                                        style="width:{{ row.persen_css }}%"
                                     ></span>
                                 </div>
 

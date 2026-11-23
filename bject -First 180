@@ -1,0 +1,14 @@
+warning: in the working copy of 'dashboard/tests/test_search_and_overview.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'extraction/tests/test_clustering_and_validation.py', LF will be replaced by CRLF the next time Git touches it
+ dashboard/services/metrics.py                      |  41 [32m+[m[31m-[m
+ dashboard/tests/test_search_and_overview.py        | 325 [32m+++++++[m[31m--------[m
+ extraction/admin.py                                |   9 [32m+[m[31m-[m
+ extraction/models.py                               |   4 [32m+[m
+ extraction/services/clustering.py                  |  92 [32m++++[m[31m-[m
+ extraction/tests/test_clustering_and_validation.py | 451 [32m++++++++++[m[31m----------[m
+ static/css/app.css                                 | 459 [32m++++++++++++++++++[m[31m---[m
+ static/js/app.js                                   | 138 [32m+++++[m[31m--[m
+ templates/dashboard/overview.html                  |  13 [32m+[m[31m-[m
+ templates/extraction/pipeline.html                 |  67 [32m++[m[31m-[m
+ templates/stories/compose.html                     |   8 [32m+[m[31m-[m
+ 11 files changed, 1081 insertions(+), 526 deletions(-)

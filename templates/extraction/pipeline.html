@@ -27,9 +27,9 @@
                 <svg aria-hidden="true"><use href="#icon-upload"></use></svg>
                 Impor CSV
             </a>
-            <form method="post" action="{% url 'extraction:run_pipeline' %}">
+            <form method="post" action="{% url 'extraction:run_pipeline' %}" id="pipeline-run-form" data-pipeline-form>
                 {% csrf_token %}
-                <button type="submit" class="kw-btn kw-btn--primary">
+                <button type="submit" class="kw-btn kw-btn--primary" id="btn-run-pipeline">
                     <svg aria-hidden="true"><use href="#icon-play"></use></svg>
                     <span>Jalankan Ekstraksi</span>
                 </button>
@@ -42,6 +42,69 @@
             {% endif %}
         </div>
     </header>
+
+    <!-- ==================================================================
+         INDIKATOR PROGRES PIPELINE (Accessible & Honest Status)
+         ================================================================== -->
+    <div id="pipeline-progress" class="kw-pipeline-progress" role="status" aria-live="polite" hidden>
+        <div class="kw-pipeline-progress__card">
+            <div class="kw-pipeline-progress__header">
+                <span class="kw-spinner kw-spinner--lg" aria-hidden="true"></span>
+                <div>
+                    <h2 class="kw-pipeline-progress__title">Sedang Menjalankan Ekstraksi &amp; Clustering</h2>
+                    <p class="kw-pipeline-progress__desc">
+                        Server sedang memproses ulasan yang lolos filter: mengekstraksi elemen Who-What-Why
+                        dan mengelompokkannya ke dalam cluster topik semantik.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Indeterminate bar (Jujur: tidak memakai persentase palsu) -->
+            <div class="kw-progress kw-progress--indeterminate" aria-label="Proses ekstraksi sedang berjalan di server">
+                <div class="kw-progress__bar"></div>
+            </div>
+
+            <div class="kw-pipeline-stages" aria-label="Alur pemrosesan ulasan">
+                <div class="kw-pipeline-stage kw-pipeline-stage--done">
+                    <span class="kw-pipeline-stage__icon">
+                        <svg aria-hidden="true" width="12" height="12"><use href="#icon-check"></use></svg>
+                    </span>
+                    <div class="kw-pipeline-stage__info">
+                        <strong>1. Pengambilan Review</strong>
+                        <span>Ulasan tersimpan di database</span>
+                    </div>
+                </div>
+                <div class="kw-pipeline-stage kw-pipeline-stage--done">
+                    <span class="kw-pipeline-stage__icon">
+                        <svg aria-hidden="true" width="12" height="12"><use href="#icon-check"></use></svg>
+                    </span>
+                    <div class="kw-pipeline-stage__info">
+                        <strong>2. Filtering Review</strong>
+                        <span>Filter relevansi &amp; spam selesai</span>
+                    </div>
+                </div>
+                <div class="kw-pipeline-stage kw-pipeline-stage--active">
+                    <span class="kw-pipeline-stage__icon">
+                        <span class="kw-spinner" style="width:12px;height:12px;border-width:2px"></span>
+                    </span>
+                    <div class="kw-pipeline-stage__info">
+                        <strong>3. Ekstraksi AI &amp; Clustering</strong>
+                        <span>Sedang diproses oleh server…</span>
+                    </div>
+                </div>
+                <div class="kw-pipeline-stage kw-pipeline-stage--pending">
+                    <span class="kw-pipeline-stage__icon">4</span>
+                    <div class="kw-pipeline-stage__info">
+                        <strong>4. Validasi Analyst</strong>
+                        <span>Menunggu keputusan validasi</span>
+                    </div>
+                </div>
+            </div>
+            <p class="kw-help" style="margin:8px 0 0;text-align:right">
+                Harap jangan menutup atau me-refresh halaman sampai proses selesai.
+            </p>
+        </div>
+    </div>
 
     <!-- ==================================================================
          STATISTIK PIPELINE

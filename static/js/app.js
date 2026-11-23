@@ -379,6 +379,39 @@
     /* ---------------------------------------------------------------------
        Forms: confirmation, genuine loading feedback, auto-submit
        --------------------------------------------------------------------- */
+    function restoreSubmitter(submitter) {
+        if (!submitter) return;
+        if (!document.body.contains(submitter)) return;
+
+        // ONLY restore elements that were explicitly put into loading state by KataWarga
+        // to avoid accidentally re-enabling buttons disabled by form validation, permissions, or business logic
+        if (submitter.dataset.kwLoading !== "1") return;
+
+        delete submitter.dataset.kwLoading;
+        submitter.disabled = false;
+        submitter.classList.remove("is-loading");
+        submitter.removeAttribute("aria-busy");
+
+        if (submitter.tagName === "INPUT") {
+            if (typeof submitter.dataset.originalValue !== "undefined") {
+                submitter.value = submitter.dataset.originalValue;
+                delete submitter.dataset.originalValue;
+            }
+        } else {
+            if (typeof submitter.dataset.originalHtml !== "undefined") {
+                submitter.innerHTML = submitter.dataset.originalHtml;
+                delete submitter.dataset.originalHtml;
+            } else {
+                var spinner = submitter.querySelector(".kw-spinner");
+                if (spinner) spinner.remove();
+            }
+        }
+
+        if (submitter.form) {
+            delete submitter.form.dataset.kwSubmitting;
+        }
+    }
+
     function initForms() {
         var activeConfirm = null;
 
@@ -513,6 +546,12 @@
             var form = event.target;
             if (!(form instanceof HTMLFormElement)) return;
 
+            // Guard against multiple submissions while request is in progress
+            if (form.dataset.kwSubmitting === "1") {
+                event.preventDefault();
+                return;
+            }
+
             var confirmationSource = event.submitter ||
                 form.querySelector('button[type="submit"], input[type="submit"]');
             var confirmMessage =
@@ -531,30 +570,43 @@
             if (form.method.toLowerCase() !== "post" || form.dataset.loading === "off") return;
 
             var submitter = event.submitter || form.querySelector('button[type="submit"], input[type="submit"]');
-            if (!submitter || submitter.disabled) return;
-
-            if (!submitter.dataset.originalHtml) {
-                submitter.dataset.originalHtml = submitter.innerHTML;
+            if (!submitter || submitter.disabled || submitter.classList.contains("is-loading")) {
+                if (submitter && (submitter.disabled || submitter.classList.contains("is-loading"))) {
+                    event.preventDefault();
+                }
+                return;
             }
 
+            // Save original label according to element type
             if (submitter.tagName === "INPUT") {
+                if (typeof submitter.dataset.originalValue === "undefined") {
+                    submitter.dataset.originalValue = submitter.value;
+                }
                 submitter.value = "Memproses…";
             } else {
+                if (typeof submitter.dataset.originalHtml === "undefined") {
+                    submitter.dataset.originalHtml = submitter.innerHTML;
+                }
                 submitter.innerHTML = '<span class="kw-spinner" aria-hidden="true"></span><span>Memproses…</span>';
             }
+
+            // Mark with specific dataset marker so restoreSubmitter only restores actual loading buttons
+            submitter.dataset.kwLoading = "1";
             submitter.classList.add("is-loading");
             submitter.setAttribute("aria-busy", "true");
             submitter.disabled = true;
+            form.dataset.kwSubmitting = "1";
 
-            /* Enable again for bfcache restores and for HTMX responses that
-               keep the current DOM. No fake delay is introduced. */
-            window.setTimeout(function () {
-                if (!document.body.contains(submitter)) return;
-                submitter.disabled = false;
-                submitter.classList.remove("is-loading");
-                submitter.removeAttribute("aria-busy");
-                submitter.innerHTML = submitter.dataset.originalHtml;
-            }, 12000);
+            // If submitting the pipeline extraction form, display the real indeterminate progress indicator
+            if (form.id === "pipeline-run-form" || form.hasAttribute("data-pipeline-form")) {
+                var progressBox = document.getElementById("pipeline-progress");
+                if (progressBox) {
+                    progressBox.hidden = false;
+                    if (typeof progressBox.scrollIntoView === "function") {
+                        progressBox.scrollIntoView({ behavior: "smooth", block: "nearest" });
+                    }
+                }
+            }
         });
 
         document.querySelectorAll("[data-auto-submit]").forEach(function (control) {
@@ -564,10 +616,24 @@
         });
 
         window.addEventListener("pageshow", function () {
-            document.querySelectorAll(".kw-btn.is-loading").forEach(function (button) {
-                if (button.dataset.originalHtml) button.innerHTML = button.dataset.originalHtml;
-                button.classList.remove("is-loading");
-                button.disabled = false;
+            // Only restore elements that were explicitly placed into loading state by KataWarga
+            // Never re-enable buttons that were disabled by form validation, permission, or business rules
+            document.querySelectorAll('[data-kw-loading="1"], .is-loading[data-kw-loading="1"]').forEach(function (btn) {
+                restoreSubmitter(btn);
+            });
+
+            document.querySelectorAll("form[data-kw-submitting]").forEach(function (form) {
+                delete form.dataset.kwSubmitting;
+            });
+
+            var progressBox = document.getElementById("pipeline-progress");
+            if (progressBox) progressBox.hidden = true;
+
+            document.querySelectorAll(".kw-spinner").forEach(function (spinner) {
+                var parentBtn = spinner.closest("button, a, .kw-btn");
+                if (parentBtn && parentBtn.dataset.kwLoading !== "1") {
+                    spinner.remove();
+                }
             });
         });
     }
@@ -1081,6 +1147,32 @@
             }
         }
 
+        function restoreFromHtmxEvent(event) {
+            var elt = (event.detail && event.detail.elt) || event.target;
+            if (!elt) return;
+
+            // Only restore submitters that have data-kw-loading="1" to avoid enabling non-loading buttons
+            if (elt.tagName === "FORM") {
+                delete elt.dataset.kwSubmitting;
+                elt.querySelectorAll('[data-kw-loading="1"]').forEach(function (btn) {
+                    restoreSubmitter(btn);
+                });
+            } else {
+                restoreSubmitter(elt);
+                if (elt.form) {
+                    delete elt.form.dataset.kwSubmitting;
+                    elt.form.querySelectorAll('[data-kw-loading="1"]').forEach(function (btn) {
+                        restoreSubmitter(btn);
+                    });
+                }
+            }
+
+            var indicator = elt.querySelector ? elt.querySelector("[data-htmx-indicator]") : null;
+            if (indicator) indicator.hidden = true;
+            var target = htmxTarget(elt);
+            if (target) target.setAttribute("aria-busy", "false");
+        }
+
         document.body.addEventListener("htmx:beforeRequest", function (event) {
             var indicator = event.detail.elt.querySelector("[data-htmx-indicator]");
             if (indicator) indicator.hidden = false;
@@ -1088,12 +1180,10 @@
             if (target) target.setAttribute("aria-busy", "true");
         });
 
-        document.body.addEventListener("htmx:afterRequest", function (event) {
-            var indicator = event.detail.elt.querySelector("[data-htmx-indicator]");
-            if (indicator) indicator.hidden = true;
-            var target = htmxTarget(event.detail.elt);
-            if (target) target.setAttribute("aria-busy", "false");
-        });
+        document.body.addEventListener("htmx:afterRequest", restoreFromHtmxEvent);
+        document.body.addEventListener("htmx:responseError", restoreFromHtmxEvent);
+        document.body.addEventListener("htmx:sendError", restoreFromHtmxEvent);
+        document.body.addEventListener("htmx:timeout", restoreFromHtmxEvent);
     }
 
     function boot() {

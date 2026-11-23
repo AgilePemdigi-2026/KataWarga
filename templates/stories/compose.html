@@ -20,7 +20,7 @@
                 <svg aria-hidden="true"><use href="#icon-upload"></use></svg>
                 Impor CSV
             </a>
-            <form method="post" action="{% url 'stories:susun' %}" hx-post="{% url 'stories:susun' %}" hx-target="#daftar-user-story" hx-swap="innerHTML" hx-indicator="#story-loading" hx-disabled-elt="find button">
+            <form method="post" action="{% url 'stories:susun' %}" hx-post="{% url 'stories:susun' %}" hx-target="#story-results" hx-swap="innerHTML" hx-indicator="#story-loading" hx-disabled-elt="find button">
                 {% csrf_token %}
                 <button type="submit" class="kw-btn kw-btn--primary">
                     <svg aria-hidden="true"><use href="#icon-sparkles"></use></svg>
@@ -75,7 +75,7 @@
     </div>
 
     <section id="daftar-user-story" class="kw-stack" aria-live="polite" aria-busy="false">
-        <div id="story-loading" class="kw-skeleton-stack" role="status">
+        <div id="story-loading" class="kw-skeleton-stack" role="status" aria-live="polite">
             <span class="kw-sr-only">Sedang menyusun User Story dari cluster tervalidasi…</span>
             <div class="kw-skeleton-card" aria-hidden="true">
                 <div class="kw-skeleton-line kw-skeleton-line--short"></div>
@@ -90,7 +90,9 @@
                 <div class="kw-skeleton-line kw-skeleton-line--wide"></div>
             </div>
         </div>
-        {% include 'stories/partials/_story_list.html' %}
+        <div id="story-results">
+            {% include 'stories/partials/_story_list.html' %}
+        </div>
     </section>
 </div>
 {% endblock %}
