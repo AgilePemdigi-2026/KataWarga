@@ -32,9 +32,9 @@ def _kandidat(aplikasi_pkg=None, bintang_min=None, bintang_maks=None):
     ).order_by('id')
     if aplikasi_pkg:
         qs = qs.filter(aplikasi__package_name__in=aplikasi_pkg)
-    if bintang_min:
+    if bintang_min is not None:
         qs = qs.filter(skor_bintang__gte=bintang_min)
-    if bintang_maks:
+    if bintang_maks is not None:
         qs = qs.filter(skor_bintang__lte=bintang_maks)
     return qs
 

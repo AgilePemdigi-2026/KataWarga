@@ -29,7 +29,7 @@ class Ulasan(models.Model):
         DUPLIKAT = 'duplikat', 'Duplikat'
         TANPA_KEBUTUHAN = 'tanpa kebutuhan', 'Tanpa kebutuhan terdeteksi'
 
-    aplikasi =models.ForeignKey(Aplikasi, on_delete=models.CASCADE, related_name='ulasan_set')
+    aplikasi = models.ForeignKey(Aplikasi, on_delete=models.CASCADE, related_name='ulasan_set')
     # ID ulasan dari Play Store (reviewId). Kunci pencegah duplikat (FR-EKS-04);
     # kosong (NULL) untuk data dummy/unggahan CSV. # USULAN: kolom tambahan di luar ERD SRS
     review_id = models.CharField(max_length=100, null=True, blank=True, default=None)

@@ -213,6 +213,9 @@ def kelompokkan_embedding(queryset=None, distance_threshold=None, dry_run=False,
 
     embedder = embedder or GeminiEmbedder()
     hasil.embedding_baru = pastikan_embedding(items, embedder)  # cache embedding disimpan walau dry-run
+    if dry_run and hasil.embedding_baru:
+        logger.warning('dry_run: %s embedding baru TETAP ditulis ke basis data (cache embedding_what); '
+                       'cluster tidak disimpan.', hasil.embedding_baru)
     X = _matriks(items, pusat)
     label = bentuk_label(X, ambang)
     hasil.silhouette = skor_silhouette(X, label)

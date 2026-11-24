@@ -184,3 +184,16 @@ def test_command_sweep(hasil):
     with mock.patch.object(ce, 'GeminiEmbedder', return_value=EmbedderPalsu()):
         call_command('cluster_reviews', '--sweep', '0.1,1.5', stdout=out)
     assert 'ambang' in out.getvalue() and Cluster.objects.count() == 0
+
+
+def test_bangun_ulang_dry_run_tidak_mengubah_cluster(hasil):
+    e = EmbedderPalsu()
+    ce.kelompokkan_embedding(distance_threshold=0.1, embedder=e)
+    besar = Cluster.objects.order_by('-jumlah_anggota').first()
+    besar.status_cluster = Cluster.StatusCluster.TERVALIDASI
+    besar.save()
+    jumlah_cluster, jumlah_anggota = Cluster.objects.count(), ClusterAnggota.objects.count()
+    r = ce.kelompokkan_embedding(distance_threshold=1.5, embedder=e, bangun_ulang=True, dry_run=True)
+    assert r.diproses == 3 and r.cluster_baru == 1            # simulasi: yang tervalidasi tidak ikut
+    assert (Cluster.objects.count(), ClusterAnggota.objects.count()) == (jumlah_cluster, jumlah_anggota)
+    assert r.cluster_dihapus == 0                              # tidak ada yang benar-benar dihapus

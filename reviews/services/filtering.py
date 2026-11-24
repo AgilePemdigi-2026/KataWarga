@@ -66,7 +66,7 @@ _TEKNIS = [
     'verifikasi', 'sinkron', 'sync', 'server', 'koneksi', 'hilang', 'update', 'pembaruan', 'offline',
     'tidak jalan', 'tidak berfungsi', 'boros', 'panas', 'notifikasi', 'salah', 'keliru', 'gangguan',
     'maintenance', 'ditolak', 'invalid', 'timeout', 'tidak sesuai', 'tidak valid', 'tidak ditemukan',
-    'ribet', 'susah', 'sulit', 'rumit', 'bingung', 'tidak', 'failed', 'lama',
+    'ribet', 'susah', 'sulit', 'rumit', 'bingung', 'failed', 'lama',
 ]
 
 _KEBUTUHAN = [
@@ -94,7 +94,7 @@ _PENGISI = [
 
 _KATA_SPAM = [
     'slot', 'gacor', 'judi', 'togel', 'maxwin', 'deposit', 'pinjol', 'pinjaman cepat', 'wa me',
-    'whatsapp', 'telegram', 'hubungi kami', 'klik link', 'klik tautan', 'daftar sekarang bonus',
+    'hubungi kami', 'klik link', 'klik tautan', 'daftar sekarang bonus',
 ]
 
 _RE_URL = re.compile(r'(https?://|www\.|\b[a-z0-9-]+\.(?:com|net|xyz|top|site|online|link|club|vip)\b)', re.I)

@@ -190,3 +190,13 @@ def test_pujian_dengan_nama_aplikasi_atau_subjek_umum_dibuang(teks, skor):
 ])
 def test_pujian_disertai_kebutuhan_tetap_lolos(teks):
     assert ev(teks, 3).lolos
+
+
+def test_permintaan_fitur_whatsapp_bukan_spam():
+    k = ev('tolong tambahkan fitur notifikasi lewat WhatsApp dan Telegram', 4)
+    assert k.lolos, k.alasan
+
+
+def test_tidak_sendirian_bukan_sinyal_teknis():
+    for teks, skor in (('ga jelas', 1), ('ga guna', 1), ('Aman gak nihhh Bang?', 5)):
+        assert not ev(teks, skor).lolos, teks

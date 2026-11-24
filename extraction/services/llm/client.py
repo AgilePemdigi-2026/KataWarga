@@ -228,6 +228,8 @@ class OpenAICompatClient(GeminiClient):
             raise LLMConfigError('LLM_BASE_URL dan LLM_MODEL wajib diisi untuk penyedia LLM kampus.')
         super().__init__(api_key=api_key or 'ollama', model=model, timeout_detik=timeout_detik,
                          max_retry=max_retry, backoff_dasar_detik=backoff_dasar_detik, rpm=0,
+                         # sdk_client=sentinel: melewati cek api_key GeminiClient; tidak pernah dipakai karena
+                         # _panggil_sdk/embed/daftar_model di kelas ini ditimpa dan memakai HTTP.
                          temperature=temperature, sdk_client=object(), tidur=tidur, jam=jam)
         self.base_url = base_url.rstrip('/')
         self.embedding_model = embedding_model
@@ -320,7 +322,7 @@ class OpenAICompatClient(GeminiClient):
 
     def daftar_model(self):
         import requests
-        r = requests.get(f'{self.base_url}/models', timeout=self.timeout_detik,
+        r = (self._http or requests).get(f'{self.base_url}/models', timeout=self.timeout_detik,
                          headers={'Authorization': f'Bearer {self._api_key}'})
         r.raise_for_status()
         return sorted(m['id'] for m in r.json().get('data', []))

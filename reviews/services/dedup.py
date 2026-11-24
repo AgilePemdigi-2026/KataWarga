@@ -14,4 +14,6 @@ def kunci_teks_lolos(aplikasi):
     teks = Ulasan.objects.filter(
         aplikasi=aplikasi, status_filter=Ulasan.StatusFilter.LOLOS,
     ).values_list('isi_ulasan', flat=True)
+    # Skala: seluruh kunci ulasan LOLOS satu aplikasi dimuat ke memori sebagai set (~20 MB per 100 ribu ulasan).
+    # Cukup untuk target tugas (ratusan ribu paling banyak); bila membesar, pindah ke hash kolom di DB.
     return {kunci_duplikat(t) for t in teks.iterator()}

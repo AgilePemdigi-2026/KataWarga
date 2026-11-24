@@ -17,7 +17,7 @@ from django.core.paginator import Paginator
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404  # noqa: F401  (dipakai tidak langsung lewat _ambil)
 
-from accounts.decorators import _get_acting_role
+from accounts.decorators import get_acting_role
 from accounts.models import User
 from extraction.models import Cluster, GalatEkstraksi, HasilEkstraksi, LogValidasi
 from extraction.services import validation
@@ -47,7 +47,7 @@ def api_view(*, roles, methods=('GET',)):
             user = getattr(request, 'user', None)
             if user is None or not user.is_authenticated:
                 return galat('tidak_login', 'Silakan login terlebih dahulu.', 401)
-            if _get_acting_role(request) not in roles:
+            if get_acting_role(request) not in roles:
                 return galat('akses_ditolak', 'Peran Anda tidak memiliki akses ke sumber daya ini.', 403)
             try:
                 return fn(request, *args, **kwargs)
@@ -162,22 +162,29 @@ def ser_cluster(c, detail=False):
     return d
 
 
-def ser_log(l):
-    return {'id': l.pk, 'aksi': l.aksi, 'objek': l.objek_jenis, 'objek_id': l.objek_id,
-            'pengguna': l.pengguna.get_username() if l.pengguna_id else None,
-            'nilai_lama': l.nilai_lama, 'nilai_baru': l.nilai_baru, 'catatan': l.catatan or None,
-            'tanggal': _tgl(l.tanggal)}
+def ser_log(log):
+    return {'id': log.pk, 'aksi': log.aksi, 'objek': log.objek_jenis, 'objek_id': log.objek_id,
+            'pengguna': log.pengguna.get_username() if log.pengguna_id else None,
+            'nilai_lama': log.nilai_lama, 'nilai_baru': log.nilai_baru, 'catatan': log.catatan or None,
+            'tanggal': _tgl(log.tanggal)}
 
 
-_QS_EKS = HasilEkstraksi.objects.select_related('ulasan__aplikasi', 'pengguna').prefetch_related('cluster_set')
-_QS_CLU = Cluster.objects.select_related('representatif__ulasan__aplikasi').prefetch_related('representatif__cluster_set')
+def _qs_eks():
+    return HasilEkstraksi.objects.select_related('ulasan__aplikasi', 'pengguna').prefetch_related('cluster_set')
+
+
+def _qs_clu():
+    return Cluster.objects.select_related('representatif__ulasan__aplikasi').prefetch_related(
+        'representatif__cluster_set')
 
 
 # --------------------------------------------------------------------------- endpoint baca
 @api_view(roles=ROLE_BACA)
 def ringkasan(request):
     """GET /api/v1/ringkasan/ — hitungan per tahap pipeline."""
-    hitung = lambda qs, f: {k: qs.filter(**{f: k}).count() for k in sorted(set(qs.values_list(f, flat=True)))}  # noqa: E731
+    def hitung(qs, f):
+        return {k: qs.filter(**{f: k}).count() for k in sorted(set(qs.values_list(f, flat=True)))}
+
     return sukses({
         'ulasan': {'total': Ulasan.objects.count(), **hitung(Ulasan.objects.all(), 'status_filter')},
         'ulasan_dibuang_per_alasan': hitung(Ulasan.objects.filter(status_filter='DIBUANG'), 'alasan_filter'),
@@ -203,7 +210,7 @@ def ulasan_list(request):
 @api_view(roles=ROLE_BACA)
 def ekstraksi_list(request):
     """GET /api/v1/ekstraksi/?status=MENUNGGU_VALIDASI&aplikasi=<package>&cluster=<id>"""
-    qs = _QS_EKS.order_by('-id')
+    qs = _qs_eks().order_by('-id')
     st = request.GET.get('status')
     if st:
         if st not in dict(HasilEkstraksi.StatusValidasi.choices):
@@ -219,7 +226,7 @@ def ekstraksi_list(request):
 @api_view(roles=ROLE_BACA)
 def ekstraksi_detail(request, pk):
     """GET /api/v1/ekstraksi/<id>/ — termasuk evidence dan teks ulasan asli."""
-    return sukses(ser_ekstraksi(_ambil(HasilEkstraksi, pk, _QS_EKS), detail=True))
+    return sukses(ser_ekstraksi(_ambil(HasilEkstraksi, pk, _qs_eks()), detail=True))
 
 
 @api_view(roles=ROLE_BACA)
@@ -227,13 +234,13 @@ def ekstraksi_riwayat(request, pk):
     """GET /api/v1/ekstraksi/<id>/riwayat/ — jejak tindakan validasi."""
     _ambil(HasilEkstraksi, pk)
     logs = LogValidasi.objects.filter(objek_jenis='EKSTRAKSI', objek_id=pk).select_related('pengguna')
-    return sukses([ser_log(l) for l in logs], {'total': logs.count()})
+    return sukses([ser_log(log) for log in logs], {'total': logs.count()})
 
 
 @api_view(roles=ROLE_BACA)
 def cluster_list(request):
     """GET /api/v1/cluster/?status=MENUNGGU_VALIDASI"""
-    qs = _QS_CLU.order_by('-jumlah_anggota', '-id')
+    qs = _qs_clu().order_by('-jumlah_anggota', '-id')
     st = request.GET.get('status')
     if st:
         if st not in dict(Cluster.StatusCluster.choices):
@@ -245,7 +252,7 @@ def cluster_list(request):
 @api_view(roles=ROLE_BACA)
 def cluster_detail(request, pk):
     """GET /api/v1/cluster/<id>/ — dengan seluruh anggota (WHO/WHAT/WHY + ulasan sumber)."""
-    qs = _QS_CLU.prefetch_related('anggota_set__hasil_ekstraksi__ulasan__aplikasi',
+    qs = _qs_clu().prefetch_related('anggota_set__hasil_ekstraksi__ulasan__aplikasi',
                                   'anggota_set__hasil_ekstraksi__cluster_set')
     return sukses(ser_cluster(_ambil(Cluster, pk, qs), detail=True))
 
@@ -255,17 +262,17 @@ def cluster_detail(request, pk):
 def ekstraksi_setujui(request, pk):
     """POST /api/v1/ekstraksi/<id>/setujui/  body: {"catatan": "..."} (opsional)"""
     # Service mengembalikan baris yang dikunci (select_for_update) tanpa select_related/prefetch; serializer detail
-    # menyentuh ulasan, aplikasi, pengguna, dan cluster_set, jadi dimuat ulang lewat _QS_EKS (1 query) agar
+    # menyentuh ulasan, aplikasi, pengguna, dan cluster_set, jadi dimuat ulang lewat _qs_eks() (1 query) agar
     # tidak terjadi lazy query berulang. Hal yang sama berlaku untuk tolak/perbaiki/cluster di bawah.
     he = validation.setujui_ekstraksi(_ambil(HasilEkstraksi, pk), request.user, _body(request).get('catatan', ''))
-    return sukses(ser_ekstraksi(_ambil(HasilEkstraksi, he.pk, _QS_EKS), detail=True))
+    return sukses(ser_ekstraksi(_ambil(HasilEkstraksi, he.pk, _qs_eks()), detail=True))
 
 
 @api_view(roles=ROLE_VALIDASI, methods=('POST',))
 def ekstraksi_tolak(request, pk):
     """POST /api/v1/ekstraksi/<id>/tolak/  body: {"alasan": "..."} (opsional)"""
     he = validation.tolak_ekstraksi(_ambil(HasilEkstraksi, pk), request.user, _body(request).get('alasan', ''))
-    return sukses(ser_ekstraksi(_ambil(HasilEkstraksi, he.pk, _QS_EKS), detail=True))
+    return sukses(ser_ekstraksi(_ambil(HasilEkstraksi, he.pk, _qs_eks()), detail=True))
 
 
 @api_view(roles=ROLE_VALIDASI, methods=('POST',))
@@ -277,18 +284,18 @@ def ekstraksi_perbaiki(request, pk):
             raise _Permintaan(f"Field '{k}' harus berupa teks.")
     he = validation.perbaiki_ekstraksi(_ambil(HasilEkstraksi, pk), request.user, who=b.get('who'),
                                        what=b.get('what'), why=b.get('why'), catatan=b.get('catatan', ''))
-    return sukses(ser_ekstraksi(_ambil(HasilEkstraksi, he.pk, _QS_EKS), detail=True))
+    return sukses(ser_ekstraksi(_ambil(HasilEkstraksi, he.pk, _qs_eks()), detail=True))
 
 
 @api_view(roles=ROLE_VALIDASI, methods=('POST',))
 def cluster_setujui(request, pk):
     """POST /api/v1/cluster/<id>/setujui/"""
     c = validation.setujui_cluster(_ambil(Cluster, pk), request.user)
-    return sukses(ser_cluster(_ambil(Cluster, c.pk, _QS_CLU)))
+    return sukses(ser_cluster(_ambil(Cluster, c.pk, _qs_clu())))
 
 
 @api_view(roles=ROLE_VALIDASI, methods=('POST',))
 def cluster_tolak(request, pk):
     """POST /api/v1/cluster/<id>/tolak/  body: {"alasan": "..."} (opsional)"""
     c = validation.tolak_cluster(_ambil(Cluster, pk), request.user, _body(request).get('alasan', ''))
-    return sukses(ser_cluster(_ambil(Cluster, c.pk, _QS_CLU)))
+    return sukses(ser_cluster(_ambil(Cluster, c.pk, _qs_clu())))

@@ -168,7 +168,7 @@ EXTRACTION = {
 LLM = {
     'provider': 'gemini',
     'api_key': os.getenv('GEMINI_API_KEY', ''),
-    'model': os.getenv('GEMINI_MODEL', 'gemini-3.5-flash'),  # USULAN: cek nama model di AI Studio
+    'model': os.getenv('GEMINI_MODEL', 'gemini-3.1-flash-lite'),  # model yang teruji (gemini-3.5-flash sempat 503); cek `gemini_check --list-models`
     'timeout_detik': float(os.getenv('GEMINI_TIMEOUT', '60')),
     'max_retry': int(os.getenv('GEMINI_MAX_RETRY', '4')),
     'backoff_dasar_detik': float(os.getenv('GEMINI_BACKOFF', '2.0')),

@@ -35,7 +35,7 @@ class EkstraktorGemini(Ekstraktor):
         self._galat = []
 
     def _batch_default(self):
-        return settings.EXTRACTION.get('batch_llm', 50)
+        return settings.EXTRACTION['batch_llm']
 
     def ambil_galat(self):
         galat, self._galat = self._galat, []
@@ -103,4 +103,4 @@ class EkstraktorKampus(EkstraktorGemini):
     provider = 'kampus'
 
     def _batch_default(self):
-        return settings.LLM_KAMPUS.get('batch_llm', 15)
+        return settings.LLM_KAMPUS['batch_llm']

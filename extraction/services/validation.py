@@ -104,8 +104,9 @@ def _nilai(he):
 
 def _perbarui_jumlah_cluster(he):
     from extraction.models import ClusterAnggota
-    for ca in ClusterAnggota.objects.filter(hasil_ekstraksi=he).select_related('cluster'):
-        c = ca.cluster
+    ids = ClusterAnggota.objects.filter(hasil_ekstraksi=he).values_list('cluster_id', flat=True)
+    # Kunci baris cluster (urut pk agar tidak deadlock) supaya dua penolakan bersamaan tidak menghitung stale.
+    for c in Cluster.objects.select_for_update().filter(pk__in=list(ids)).order_by('pk'):
         c.jumlah_anggota = c.anggota_set.exclude(
             hasil_ekstraksi__status_validasi=HasilEkstraksi.StatusValidasi.DIHAPUS).count()
         c.save(update_fields=['jumlah_anggota'])
