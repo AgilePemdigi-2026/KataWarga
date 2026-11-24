@@ -13,7 +13,7 @@ def _valid_roles():
     return [role[0] for role in User.RolePengguna.choices]
 
 
-def _get_acting_role(request):
+def get_acting_role(request):
     """
     Kembalikan peran efektif pengguna.
 
@@ -33,6 +33,10 @@ def _get_acting_role(request):
             return simulated_role
 
     return user.role
+
+
+# Nama lama dipertahankan: banyak modul (views, tes) masih mengimpor `_get_acting_role`.
+_get_acting_role = get_acting_role
 
 
 def role_required(*roles):

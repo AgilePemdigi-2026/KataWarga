@@ -21,6 +21,14 @@ class Ulasan(models.Model):
         LOLOS = 'LOLOS', 'Lolos'
         DIBUANG = 'DIBUANG', 'Dibuang'
 
+    class AlasanFilter(models.TextChoices):
+        PENDEK = 'terlalu pendek', 'Terlalu pendek'
+        SPAM = 'spam', 'Spam'
+        GENERIK = 'generik', 'Pujian/generik'
+        TIDAK_RELEVAN = 'tidak relevan', 'Tidak relevan'
+        DUPLIKAT = 'duplikat', 'Duplikat'
+        TANPA_KEBUTUHAN = 'tanpa kebutuhan', 'Tanpa kebutuhan terdeteksi'
+
     aplikasi = models.ForeignKey(Aplikasi, on_delete=models.CASCADE, related_name='ulasan_set')
     # ID ulasan dari Play Store (reviewId). Kunci pencegah duplikat (FR-EKS-04);
     # kosong (NULL) untuk data dummy/unggahan CSV. # USULAN: kolom tambahan di luar ERD SRS
@@ -30,6 +38,8 @@ class Ulasan(models.Model):
     tanggal_ulasan = models.DateField()
     skor_bintang = models.PositiveSmallIntegerField()
     status_filter = models.CharField(max_length=20, choices=StatusFilter.choices, default=StatusFilter.LOLOS)
+    # Alasan ulasan dibuang (kosong bila LOLOS). Dicatat agar setiap pembuangan dapat dijelaskan.
+    alasan_filter = models.CharField(max_length=30, choices=AlasanFilter.choices, blank=True, default='')
     tanggal_scraping = models.DateTimeField(auto_now_add=True)
 
     class Meta:

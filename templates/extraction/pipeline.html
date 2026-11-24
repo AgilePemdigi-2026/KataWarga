@@ -275,7 +275,7 @@
                 {% elif u.status_filter == 'DIBUANG' %}
                 <span class="kw-status kw-status--danger">
                     <span class="kw-status-dot"></span>
-                    {{ u.get_status_filter_display }}
+                    {{ u.get_status_filter_display }}{% if u.alasan_filter %} · {{ u.get_alasan_filter_display }}{% endif %}
                 </span>
                 {% else %}
                 <span class="kw-status kw-status--neutral">

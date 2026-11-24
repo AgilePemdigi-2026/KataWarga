@@ -7,6 +7,8 @@ from extraction.services.base import Ekstraktor
 # nama -> dotted path (diimpor saat dibutuhkan, supaya library berat tidak dimuat bila tak dipakai)
 REGISTRI = {
     'aturan': 'extraction.services.aturan.EkstraktorAturan',
+    'gemini': 'extraction.services.gemini.EkstraktorGemini',
+    'kampus': 'extraction.services.gemini.EkstraktorKampus',
 }
 
 

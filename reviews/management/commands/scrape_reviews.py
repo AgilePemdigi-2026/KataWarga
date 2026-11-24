@@ -40,6 +40,9 @@ class Command(BaseCommand):
                             help='Batasi pada package_name tertentu (boleh diulang).')
         parser.add_argument('--count', type=int, default=None,
                             help='Jumlah ulasan per aplikasi (default: settings.SCRAPING).')
+        parser.add_argument('--skor', type=int, action='append', default=[], choices=[1, 2, 3, 4, 5],
+                            help='Hanya ulasan dengan bintang ini (boleh diulang, mis. --skor 1 --skor 2). '
+                                 '--count berlaku per bintang.')
         parser.add_argument('--seed', action='store_true',
                             help='Buat/perbarui data Aplikasi dari settings.SCRAPER_TARGET_APPS.')
         parser.add_argument('--dry-run', action='store_true',
@@ -85,12 +88,13 @@ class Command(BaseCommand):
         for app in daftar:
             sub = ingest.Hasil()
             try:
-                for batch in scraper.tarik_ulasan(
-                    app.package_name, jumlah=jumlah, lang=cfg['lang'], country=cfg['country'],
-                    batch_size=cfg['batch_size'], jeda=cfg['jeda_detik'],
-                    max_retry=cfg['max_retry'], backoff_dasar=cfg['backoff_dasar_detik'],
-                ):
-                    sub.tambah(ingest.simpan_batch(app, batch, dry_run=dry, cfg=cfg))
+                for skor in (opts['skor'] or [None]):
+                    for batch in scraper.tarik_ulasan(
+                        app.package_name, jumlah=jumlah, lang=cfg['lang'], country=cfg['country'],
+                        batch_size=cfg['batch_size'], jeda=cfg['jeda_detik'],
+                        max_retry=cfg['max_retry'], backoff_dasar=cfg['backoff_dasar_detik'], skor=skor,
+                    ):
+                        sub.tambah(ingest.simpan_batch(app, batch, dry_run=dry, cfg=cfg))
             except scraper.ScrapingError as exc:
                 # FR-EKS-10/11: catat log, jangan ubah data lama, lanjut ke aplikasi berikutnya.
                 logger.error('app=%s gagal: %s', app.package_name, exc)

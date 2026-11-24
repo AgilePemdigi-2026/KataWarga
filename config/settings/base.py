@@ -135,6 +135,9 @@ SCRAPING = {
         'jelek', 'sip', 'top', 'wow', 'terbaik', 'bagus banget',
         'mantap jiwa', 'bagus sekali', 'sangat bagus', 'lumayan',
     ],
+    'min_kata_keluhan': 2,        # keluhan teknis singkat ("login gagal") tetap lolos  # USULAN
+    'maks_kata_tanpa_sinyal': 5,  # ulasan <= N kata tanpa sinyal kebutuhan/keluhan = tidak relevan  # USULAN
+    'maks_rasio_unik_spam': 0.3,  # kata unik / total <= ambang (min 4 kata) = spam  # USULAN
     'samarkan_username': True,    # TBD-10 / USULAN: username di-hash, bukan disimpan asli
 }
 
@@ -144,7 +147,7 @@ SCRAPER_TARGET_APPS = [
     # Verifikasi package_name di URL Play Store: play.google.com/store/apps/details?id=<package_name>
     {'nama_aplikasi': 'SATU SEHAT', 'package_name': 'com.telkom.tracencare', 'kategori': 'Kesehatan'},  # VERIFIKASI
     {'nama_aplikasi': 'IKD', 'package_name': 'gov.dukcapil.mobile_id', 'kategori': 'Kependudukan'},     # VERIFIKASI
-    {'nama_aplikasi': 'M-Pajak', 'package_name': 'com.djp.mpajak', 'kategori': 'Perpajakan'},
+    {'nama_aplikasi': 'M-Pajak', 'package_name': 'id.go.pajak.djp', 'kategori': 'Perpajakan'},  # dikonfirmasi dari URL Play Store
 ]
 
 # ---------------------------------------------------------------------------
@@ -155,11 +158,57 @@ SCRAPER_TARGET_APPS = [
 EXTRACTION = {
     'ekstraktor': 'aturan',     # ekstraktor awal berbasis aturan (baseline)  # USULAN
     'max_hasil_per_ulasan': 3,  # satu ulasan boleh menghasilkan >1 hasil (FR-EKS-06)
-    'batch_size': 100,          # ulasan per transaksi
+    'batch_size': 100,          # ulasan per transaksi basis data
+    'batch_llm': int(os.getenv('EXTRACTION_BATCH_LLM', '50')),  # ulasan per permintaan LLM (Prasetya et al. 2026)
 }
 
 
+# Integrasi LLM (Sprint 3, bagian A). Kunci API HANYA dari environment variable,
+# tidak pernah ditulis di repo. Nama model dan kuota disesuaikan dengan dashboard AI Studio.
+LLM = {
+    'provider': 'gemini',
+    'api_key': os.getenv('GEMINI_API_KEY', ''),
+    'model': os.getenv('GEMINI_MODEL', 'gemini-3.1-flash-lite'),  # model yang teruji (gemini-3.5-flash sempat 503); cek `gemini_check --list-models`
+    'timeout_detik': float(os.getenv('GEMINI_TIMEOUT', '60')),
+    'max_retry': int(os.getenv('GEMINI_MAX_RETRY', '4')),
+    'backoff_dasar_detik': float(os.getenv('GEMINI_BACKOFF', '2.0')),
+    'rpm': float(os.getenv('GEMINI_RPM', '10')),  # permintaan/menit; samakan dengan kuota free tier
+    'temperature': 0.0,                            # deterministik agar hasil dapat direplikasi
+    'embedding_model': os.getenv('GEMINI_EMBED_MODEL', 'gemini-embedding-001'),  # cek di AI Studio / gemini_check
+    'embedding_dim': int(os.getenv('GEMINI_EMBED_DIM', '768')),
+}
+
+
+# LLM kampus (server Aorus, Ollama kompatibel OpenAI; lihat docs/server-aorus.md di repo ai-server).
+# OPSIONAL: Gemini tetap penyedia utama. Endpoint hanya terjangkau dari aplikasi yang di-deploy di server kampus.
+# Nama variabel mengikuti dokumen server. Pakai: `extract_reviews --extractor kampus`.
+LLM_KAMPUS = {
+    'base_url': os.getenv('LLM_BASE_URL', ''),
+    'api_key': os.getenv('LLM_API_KEY', 'ollama'),
+    'model': os.getenv('LLM_MODEL', 'gemma4:12b'),
+    'timeout_detik': float(os.getenv('LLM_TIMEOUT', '180')),
+    'max_retry': int(os.getenv('LLM_MAX_RETRY', '3')),
+    'backoff_dasar_detik': float(os.getenv('LLM_BACKOFF', '5.0')),
+    'temperature': 0.0,
+    'embedding_model': os.getenv('LLM_EMBED_MODEL', ''),  # kosong: server belum menyediakan embedding
+    'batch_llm': int(os.getenv('LLM_BATCH', '15')),       # GPU bersama + model kecil: batch lebih kecil dari Gemini
+}
+
+# Penyedia embedding untuk clustering: 'gemini' (default) atau 'kampus' (butuh LLM_EMBED_MODEL).
+EMBED_PROVIDER = os.getenv('EMBED_PROVIDER', 'gemini')
+
+
 CLUSTERING = {
-    'distance_threshold': 0.55,  # ambang batas jarak cosine (FR-EKS-08)
+    'distance_threshold': 0.55,  # ambang jarak cosine untuk metode 'tfidf' (baseline Sprint 2)
     'min_samples': 1,
+    # Sprint 3 bagian D: embedding WHAT + agglomerative (cosine, average linkage), mengikuti Prasetya et al. 2026.
+    # Ambang 0.5 pada artikel bergantung pada model embedding-nya. Untuk gemini-embedding-001 (768-dim) hasil sweep
+    # pada 101 hasil: silhouette tertinggi di 0.10 (35 cluster), 0.12 mulai mencampur topik, >=0.16 satu cluster raksasa.
+    # Ambang untuk model/data lain HARUS dikalibrasi
+    # dengan `cluster_reviews --sweep` lalu dicatat di dokumentasi evaluasi.
+    'metode': os.getenv('CLUSTER_METODE', 'embedding'),   # 'embedding' atau 'tfidf'
+    'ambang_embedding': float(os.getenv('CLUSTER_AMBANG', '0.10')),
+    'batch_embedding': 100,
+    # Pemusatan embedding (kurangi vektor rata-rata) sebelum cosine; ambang HARUS dikalibrasi ulang bila diaktifkan.
+    'pusatkan': os.getenv('CLUSTER_PUSATKAN', '0') == '1',
 }

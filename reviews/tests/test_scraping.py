@@ -170,3 +170,15 @@ class CommandTest(TestCase):
         Aplikasi.objects.all().delete()
         with self.assertRaises(CommandError):
             self._jalankan()
+
+
+def test_skor_diteruskan_ke_fetcher():
+    panggilan = []
+
+    def fetcher(pkg, lang, country, count, token, skor=None):
+        panggilan.append(skor)
+        return [{'reviewId': 'a'}], None
+
+    list(scraper.tarik_ulasan('x', jumlah=1, fetcher=fetcher, sleep=lambda s: None, skor=1))
+    list(scraper.tarik_ulasan('x', jumlah=1, fetcher=fetcher, sleep=lambda s: None))
+    assert panggilan == [1, None]

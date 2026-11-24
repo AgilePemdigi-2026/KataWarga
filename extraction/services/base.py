@@ -19,15 +19,35 @@ class HasilEkstrak:
     who: str = ''            # pemangku kepentingan (boleh kosong)
     why: str = ''            # alasan/dampak (boleh kosong)
     confidence: float = 0.0  # 0..1; untuk ekstraktor aturan ini heuristik, bukan probabilitas model
+    # Hanya diisi ekstraktor LLM:
+    user_story: str = ''     # "As a [who], I want to [what], so that [why]"
+    evidence: str = ''       # kutipan ulasan yang mendukung
+    evidence_why: str = ''   # kutipan ulasan yang menjadi dasar WHY
+    sentimen: str = ''
 
 
 class Ekstraktor(ABC):
     nama = 'ekstraktor'
+    versi_prompt = ''
+    model = ''
 
     @abstractmethod
     def ekstrak(self, teks):
         """Kembalikan list[HasilEkstrak] untuk satu ulasan; list kosong bila tidak ada."""
 
     def ekstrak_batch(self, daftar_teks):
-        """Kembalikan list[list[HasilEkstrak]] sejajar dengan `daftar_teks`."""
-        return [self.ekstrak(t) for t in daftar_teks]
+        """
+        Kembalikan list sejajar dengan `daftar_teks`. Tiap elemen adalah list[HasilEkstrak]
+        atau instance Exception bila ulasan itu gagal (pipeline mencatat dan melanjutkan).
+        """
+        hasil = []
+        for t in daftar_teks:
+            try:
+                hasil.append(self.ekstrak(t))
+            except Exception as exc:
+                hasil.append(exc)
+        return hasil
+
+    def ambil_galat(self):
+        """Kembalikan list[(indeks, jenis, pesan)] penolakan sejak panggilan terakhir, lalu kosongkan."""
+        return []
