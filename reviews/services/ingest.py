@@ -10,7 +10,7 @@ from django.conf import settings
 from django.db import transaction
 
 from reviews.models import Ulasan
-from reviews.services import filtering
+from reviews.services import dedup, filtering
 
 
 @dataclass
@@ -67,12 +67,22 @@ def simpan_batch(aplikasi, batch, *, dry_run=False, cfg=None):
         .values_list('review_id', flat=True)
     )
 
+    teks_lolos = dedup.kunci_teks_lolos(aplikasi) if kandidat else set()
+
     baru = []
     for review_id, (item, isi, tanggal, skor) in kandidat.items():
         if review_id in sudah_ada:
             hasil.duplikat += 1
             continue
-        lolos, _alasan = filtering.periksa_ulasan(isi, cfg['min_kata'], cfg['pola_generik'])
+        skor_int = max(1, min(5, int(skor)))
+        keputusan = filtering.evaluasi_ulasan(isi, skor_int, cfg)
+        lolos, alasan = keputusan.lolos, keputusan.alasan
+        if lolos:
+            kunci = filtering.kunci_duplikat(isi)
+            if kunci in teks_lolos:
+                lolos, alasan = False, filtering.ALASAN_DUPLIKAT
+            else:
+                teks_lolos.add(kunci)
         username = item.get('userName') or ''
         if cfg.get('samarkan_username', True):
             username = samarkan_username(username)
@@ -82,8 +92,9 @@ def simpan_batch(aplikasi, batch, *, dry_run=False, cfg=None):
             username_reviewer=username[:150],
             isi_ulasan=isi,
             tanggal_ulasan=tanggal,
-            skor_bintang=max(1, min(5, int(skor))),
+            skor_bintang=skor_int,
             status_filter=Ulasan.StatusFilter.LOLOS if lolos else Ulasan.StatusFilter.DIBUANG,
+            alasan_filter=alasan,
         ))
         hasil.baru += 1
         if lolos:

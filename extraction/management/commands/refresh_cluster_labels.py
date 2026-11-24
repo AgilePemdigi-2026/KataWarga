@@ -55,7 +55,10 @@ class Command(BaseCommand):
         for cluster in qs:
             total_diproses += 1
             anggota_pertama = cluster.anggota_set.first()
-            if anggota_pertama and anggota_pertama.hasil_ekstraksi:
+            if cluster.representatif_id:  # cluster embedding (Sprint 3 D): pakai story perwakilan
+                teks_what = cluster.representatif.teks_what
+                teks_why = cluster.representatif.teks_why
+            elif anggota_pertama and anggota_pertama.hasil_ekstraksi:
                 teks_what = anggota_pertama.hasil_ekstraksi.teks_what
                 teks_why = anggota_pertama.hasil_ekstraksi.teks_why
             else:

@@ -17,3 +17,6 @@ transformers>=4.36.0
 scikit-learn>=1.3.0
 numpy>=1.24.0
 pandas>=2.0.0
+
+# Klien LLM (Sprint 3)
+google-genai>=1.0.0

@@ -13,7 +13,8 @@ from django.db import transaction
 from django.utils import timezone
 
 from reviews.models import Aplikasi, Ulasan
-from reviews.services.filtering import periksa_ulasan
+from reviews.services import dedup
+from reviews.services.filtering import ALASAN_DUPLIKAT, evaluasi_ulasan, kunci_duplikat
 
 
 MAKS_UKURAN_BYTES = 5 * 1024 * 1024
@@ -153,8 +154,6 @@ def import_reviews_csv(file_obj, user=None):
     baris = _baca_baris(file_obj)
 
     konfigurasi = getattr(settings, "SCRAPING", {})
-    min_kata = konfigurasi.get("min_kata", 3)
-    pola_generik = konfigurasi.get("pola_generik", [])
 
     valid = []
     errors = []
@@ -200,6 +199,8 @@ def import_reviews_csv(file_obj, user=None):
         )
 
     review_dalam_file = set()
+    teks_lolos = {}
+    rincian_alasan = {}
     siap_simpan = []
     dilewati = 0
     dibuang = 0
@@ -225,15 +226,26 @@ def import_reviews_csv(file_obj, user=None):
             aplikasi_map[item["package_name"]] = aplikasi
             aplikasi_baru += 1
 
-        sudah_lolos, _alasan = periksa_ulasan(
-            item["isi_ulasan"], min_kata, pola_generik
+        keputusan = evaluasi_ulasan(
+            item["isi_ulasan"], item["skor_bintang"], konfigurasi
         )
+        sudah_lolos, alasan = keputusan.lolos, keputusan.alasan
+        if sudah_lolos:
+            kunci_set = teks_lolos.setdefault(
+                item["package_name"], dedup.kunci_teks_lolos(aplikasi)
+            )
+            kunci = kunci_duplikat(item["isi_ulasan"])
+            if kunci in kunci_set:
+                sudah_lolos, alasan = False, ALASAN_DUPLIKAT
+            else:
+                kunci_set.add(kunci)
         if sudah_lolos:
             lolos += 1
         else:
             dibuang += 1
+            rincian_alasan[alasan] = rincian_alasan.get(alasan, 0) + 1
 
-        siap_simpan.append((aplikasi, item, sudah_lolos))
+        siap_simpan.append((aplikasi, item, sudah_lolos, alasan))
 
     with transaction.atomic():
         for aplikasi in aplikasi_map.values():
@@ -253,8 +265,9 @@ def import_reviews_csv(file_obj, user=None):
                     if sudah_lolos
                     else Ulasan.StatusFilter.DIBUANG
                 ),
+                alasan_filter=alasan,
             )
-            for aplikasi, item, sudah_lolos in siap_simpan
+            for aplikasi, item, sudah_lolos, alasan in siap_simpan
         ])
 
     return {
@@ -265,6 +278,7 @@ def import_reviews_csv(file_obj, user=None):
         "diimpor": len(siap_simpan),
         "lolos": lolos,
         "dibuang": dibuang,
+        "rincian_alasan": rincian_alasan,
         "duplikat": dilewati,
         "aplikasi_baru": aplikasi_baru,
         "errors": [],
