@@ -46,7 +46,7 @@ def _normalisasi(matriks):
 class GeminiEmbedder(Embedder):
     def __init__(self, client=None, model=None, dimensi=None, batch=None):
         from extraction.services.llm import get_llm_client
-        provider = getattr(settings, 'EMBED_PROVIDER', 'gemini')
+        provider = settings.EMBED_PROVIDER  # didefinisikan di base.py; sengaja tanpa default agar salah ketik terlihat
         self.client = client or get_llm_client(provider=provider)
         if provider == 'kampus':
             default_model = settings.LLM_KAMPUS.get('embedding_model', '')

@@ -254,6 +254,9 @@ def cluster_detail(request, pk):
 @api_view(roles=ROLE_VALIDASI, methods=('POST',))
 def ekstraksi_setujui(request, pk):
     """POST /api/v1/ekstraksi/<id>/setujui/  body: {"catatan": "..."} (opsional)"""
+    # Service mengembalikan baris yang dikunci (select_for_update) tanpa select_related/prefetch; serializer detail
+    # menyentuh ulasan, aplikasi, pengguna, dan cluster_set, jadi dimuat ulang lewat _QS_EKS (1 query) agar
+    # tidak terjadi lazy query berulang. Hal yang sama berlaku untuk tolak/perbaiki/cluster di bawah.
     he = validation.setujui_ekstraksi(_ambil(HasilEkstraksi, pk), request.user, _body(request).get('catatan', ''))
     return sukses(ser_ekstraksi(_ambil(HasilEkstraksi, he.pk, _QS_EKS), detail=True))
 

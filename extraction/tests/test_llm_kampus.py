@@ -100,3 +100,22 @@ def test_ekstraktor_kampus_terdaftar(settings):
 
 def test_health(client):
     assert client.get('/health').json() == {'status': 'ok'}
+
+
+def test_mode_turun_dipertahankan_bila_json_object_berhasil():
+    http = _Http([_R(400, text='unsupported'), _chat('{"a": "1"}'), _chat('{"a": "2"}')])
+    k = _klien(http)
+    k.generate_json('p', SKEMA)
+    k.generate_json('p', SKEMA)
+    assert [c[1]['response_format']['type'] for c in http.panggilan] == ['json_schema', 'json_object', 'json_object']
+
+
+def test_mode_dikembalikan_bila_400_bukan_karena_json_schema():
+    http = _Http([_R(400, text='prompt terlalu panjang'), _R(400, text='prompt terlalu panjang'),
+                  _chat('{"a": "ok"}')])
+    k = _klien(http)
+    with pytest.raises(LLMError):
+        k.generate_json('p', SKEMA)
+    assert k._mode_json == 'json_schema'
+    assert k.generate_json('p', SKEMA) == {'a': 'ok'}
+    assert http.panggilan[-1][1]['response_format']['type'] == 'json_schema'

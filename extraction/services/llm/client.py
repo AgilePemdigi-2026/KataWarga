@@ -263,9 +263,16 @@ class OpenAICompatClient(GeminiClient):
             return self._post('/chat/completions', payload)
         except _HTTPGagal as exc:
             if exc.code == 400 and self._mode_json == 'json_schema':
-                logger.warning('server menolak json_schema; turun ke json_object')
+                # Turun ke json_object hanya untuk percobaan ini. Mode baru DIPERTAHANKAN (agar request berikutnya
+                # tidak selalu gagal dulu) hanya bila percobaan itu berhasil; bila 400 ternyata disebabkan hal
+                # lain (mis. prompt terlalu panjang), mode semula dikembalikan.
+                logger.warning('server menolak json_schema; mencoba json_object')
                 self._mode_json = 'json_object'
-                return self._panggil_sdk(prompt, schema, system_instruction)
+                try:
+                    return self._panggil_sdk(prompt, schema, system_instruction)
+                except Exception:
+                    self._mode_json = 'json_schema'
+                    raise
             raise
 
     @staticmethod
