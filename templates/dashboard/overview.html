@@ -1,5 +1,6 @@
 
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}Dashboard — KataWarga{% endblock %}
 
@@ -325,9 +326,37 @@
 
                         <div class="kw-app-item__head">
                             <div class="kw-app-item__identity">
+                                {% with app_key=app.nama_aplikasi|lower|cut:" " %}
                                 <span class="kw-app-item__icon" aria-hidden="true">
+                                    {% if app_key == 'm-pajak' or app_key == 'mpajak' %}
+                                    <img
+                                        class="kw-app-item__logo"
+                                        src="{% static 'images/logopajak.svg' %}"
+                                        alt=""
+                                        width="24"
+                                        height="24"
+                                    >
+                                    {% elif app_key == 'ikd' or app_key == 'identitaskependudukandigital' or app_key == 'identitaskependudukandigitalikd' %}
+                                    <img
+                                        class="kw-app-item__logo"
+                                        src="{% static 'images/logoikd.svg' %}"
+                                        alt=""
+                                        width="24"
+                                        height="24"
+                                    >
+                                    {% elif app_key == 'satusehat' or app_key == 'satusehatmobile' %}
+                                    <img
+                                        class="kw-app-item__logo"
+                                        src="{% static 'images/logosatusehat.svg' %}"
+                                        alt=""
+                                        width="24"
+                                        height="24"
+                                    >
+                                    {% else %}
                                     <svg><use href="#icon-app-window"></use></svg>
+                                    {% endif %}
                                 </span>
+                                {% endwith %}
                                 <div style="min-width:0">
                                     <p class="kw-app-item__name">
                                         <span class="kw-truncate" title="{{ app.nama_aplikasi }}">

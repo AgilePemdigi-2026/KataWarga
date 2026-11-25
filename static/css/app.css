@@ -205,7 +205,7 @@ svg {
 }
 
 .kw-brand-logo {
-    width: 174px;
+    width: 195px;
     max-width: 100%;
     height: auto;
     object-fit: contain;
@@ -2761,7 +2761,7 @@ html.light .kw-auth__art {
 html.light .kw-auth__veil {
     background:
         radial-gradient(70% 90% at 15% 20%, rgba(117, 70, 238, 0.1), transparent 70%),
-        linear-gradient(90deg, rgba(244, 246, 251, 0.2), rgba(244, 246, 251, 0.82) 58%, #f4f6fb 100%);
+        linear-gradient(90deg, rgba(244, 246, 251, 0.08), rgba(244, 246, 251, 0.56) 58%, rgba(244, 246, 251, 0.9) 100%);
 }
 
 .kw-auth__panel {
@@ -2782,7 +2782,7 @@ html.light .kw-auth__veil {
 }
 
 .kw-auth__brand img {
-    width: min(238px, 72%);
+    width: min(266px, 72%);
     height: auto;
 }
 
@@ -2939,7 +2939,7 @@ html.light .kw-auth__veil {
     }
 
     .kw-auth__brand img {
-        width: min(200px, 66%);
+        width: min(224px, 66%);
     }
 
     .kw-auth__head h1 {
@@ -3449,6 +3449,13 @@ html.light .kw-auth__veil {
 .kw-app-item__icon svg {
     width: 14px;
     height: 14px;
+}
+
+.kw-app-item__logo {
+    display: block;
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
 }
 
 .kw-app-item__name {
