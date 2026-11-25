@@ -197,3 +197,19 @@ def test_bangun_ulang_dry_run_tidak_mengubah_cluster(hasil):
     assert r.diproses == 3 and r.cluster_baru == 1            # simulasi: yang tervalidasi tidak ikut
     assert (Cluster.objects.count(), ClusterAnggota.objects.count()) == (jumlah_cluster, jumlah_anggota)
     assert r.cluster_dihapus == 0                              # tidak ada yang benar-benar dihapus
+
+
+def test_embedding_disimpan_per_batch_saat_kuota_habis(hasil):
+    class Gagal(EmbedderPalsu):
+        batch = 2
+
+        def embed(self, teks_list):
+            if len(self.panggilan) >= 1:
+                raise LLMResponseError('429')
+            return super().embed(teks_list)
+
+    with pytest.raises(LLMResponseError):
+        ce.pastikan_embedding(list(HasilEkstraksi.objects.order_by('id')), Gagal())
+    assert HasilEkstraksi.objects.exclude(embedding_what__isnull=True).exclude(model_embedding='').count() == 2
+    e = EmbedderPalsu()
+    assert ce.pastikan_embedding(list(HasilEkstraksi.objects.order_by('id')), e) == 4  # hanya sisanya

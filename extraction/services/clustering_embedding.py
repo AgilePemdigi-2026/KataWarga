@@ -10,6 +10,7 @@ Alur: pastikan embedding (cache di DB) -> matriks jarak cosine -> agglomerative 
 Metode TF-IDF lama (extraction/services/clustering.py) tetap tersedia sebagai baseline.
 """
 import logging
+import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import List, Optional
@@ -132,15 +133,25 @@ def _default_queryset():
 
 
 def pastikan_embedding(items, embedder):
-    """Isi `embedding_what` untuk item yang belum punya (atau dari model lain). Mengembalikan jumlah baru."""
+    """
+    Isi `embedding_what` untuk item yang belum punya (atau dari model lain). Mengembalikan jumlah baru.
+    Disimpan PER BATCH: bila kuota habis (429) di tengah jalan, batch yang sudah berhasil tidak dihitung ulang
+    pada percobaan berikutnya (penting untuk kuota harian free tier).
+    """
     perlu = [h for h in items if not h.embedding_what or h.model_embedding != embedder.nama]
     if not perlu:
         return 0
-    vektor = embedder.embed([h.teks_what for h in perlu])
-    for h, v in zip(perlu, vektor):
-        h.embedding_what = [round(float(x), 6) for x in v]
-        h.model_embedding = embedder.nama
-    HasilEkstraksi.objects.bulk_update(perlu, ['embedding_what', 'model_embedding'], batch_size=200)
+    ukuran = getattr(embedder, 'batch', None) or settings.CLUSTERING.get('batch_embedding', 100)
+    jeda = float(settings.CLUSTERING.get('jeda_embedding_detik', 0) or 0)
+    for awal in range(0, len(perlu), ukuran):
+        potong = perlu[awal:awal + ukuran]
+        if awal and jeda:
+            time.sleep(jeda)
+        vektor = embedder.embed([h.teks_what for h in potong])
+        for h, v in zip(potong, vektor):
+            h.embedding_what = [round(float(x), 6) for x in v]
+            h.model_embedding = embedder.nama
+        HasilEkstraksi.objects.bulk_update(potong, ['embedding_what', 'model_embedding'], batch_size=200)
     return len(perlu)
 
 
