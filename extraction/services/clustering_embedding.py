@@ -132,26 +132,55 @@ def _default_queryset():
         status_validasi=HasilEkstraksi.StatusValidasi.DIHAPUS).exclude(teks_what='').order_by('id')
 
 
+def _kunci_teks(teks):
+    return ' '.join((teks or '').lower().split())
+
+
 def pastikan_embedding(items, embedder):
     """
-    Isi `embedding_what` untuk item yang belum punya (atau dari model lain). Mengembalikan jumlah baru.
-    Disimpan PER BATCH: bila kuota habis (429) di tengah jalan, batch yang sudah berhasil tidak dihitung ulang
-    pada percobaan berikutnya (penting untuk kuota harian free tier).
+    Isi `embedding_what` untuk item yang belum punya (atau dari model lain). Mengembalikan jumlah item yang terisi.
+
+    Hemat kuota: (1) teks WHAT yang sama persis (setelah normalisasi spasi/huruf besar) hanya di-embed SEKALI dan
+    dipakai bersama, termasuk memakai ulang embedding yang sudah tersimpan di DB untuk teks yang sama;
+    (2) disimpan PER BATCH, sehingga bila kuota habis (429) di tengah jalan, batch yang sudah berhasil tidak
+    dihitung ulang pada percobaan berikutnya (penting untuk kuota harian free tier: 1.000 teks/hari).
     """
     perlu = [h for h in items if not h.embedding_what or h.model_embedding != embedder.nama]
     if not perlu:
         return 0
+    cache = {}
+    for teks, vek in (HasilEkstraksi.objects.filter(model_embedding=embedder.nama)
+                      .exclude(embedding_what__isnull=True).values_list('teks_what', 'embedding_what')):
+        cache.setdefault(_kunci_teks(teks), vek)
+    unik = {}
+    for h in perlu:
+        k = _kunci_teks(h.teks_what)
+        if k not in cache:
+            unik.setdefault(k, h.teks_what)
+    baru = list(unik.items())
     ukuran = getattr(embedder, 'batch', None) or settings.CLUSTERING.get('batch_embedding', 100)
     jeda = float(settings.CLUSTERING.get('jeda_embedding_detik', 0) or 0)
-    for awal in range(0, len(perlu), ukuran):
-        potong = perlu[awal:awal + ukuran]
+    terisi = set()
+
+    def _isi():
+        siap = [h for h in perlu if h.pk not in terisi and _kunci_teks(h.teks_what) in cache]
+        for h in siap:
+            h.embedding_what, h.model_embedding = cache[_kunci_teks(h.teks_what)], embedder.nama
+            terisi.add(h.pk)
+        if siap:
+            HasilEkstraksi.objects.bulk_update(siap, ['embedding_what', 'model_embedding'], batch_size=200)
+
+    for awal in range(0, len(baru), ukuran):
+        potong = baru[awal:awal + ukuran]
         if awal and jeda:
             time.sleep(jeda)
-        vektor = embedder.embed([h.teks_what for h in potong])
-        for h, v in zip(potong, vektor):
-            h.embedding_what = [round(float(x), 6) for x in v]
-            h.model_embedding = embedder.nama
-        HasilEkstraksi.objects.bulk_update(potong, ['embedding_what', 'model_embedding'], batch_size=200)
+        vektor = embedder.embed([teks for _, teks in potong])
+        for (k, _), v in zip(potong, vektor):
+            cache[k] = [round(float(x), 6) for x in v]
+        _isi()  # simpan per batch: kemajuan tidak hilang bila batch berikutnya gagal (429)
+    _isi()  # item yang teksnya sudah ada di cache DB
+    logger.info('embedding: %d item, %d teks unik di-embed, %d dipakai ulang', len(perlu), len(baru),
+                len(perlu) - len(baru))
     return len(perlu)
 
 
