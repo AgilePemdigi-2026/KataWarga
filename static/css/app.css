@@ -3456,8 +3456,6 @@ html.light .kw-auth__veil {
     width: 24px;
     height: 24px;
     object-fit: contain;
-    background: #ffffff;
-    border-radius: 5px;
 }
 
 .kw-app-item__name {
