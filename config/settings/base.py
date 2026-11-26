@@ -208,7 +208,8 @@ CLUSTERING = {
     # dengan `cluster_reviews --sweep` lalu dicatat di dokumentasi evaluasi.
     'metode': os.getenv('CLUSTER_METODE', 'embedding'),   # 'embedding' atau 'tfidf'
     'ambang_embedding': float(os.getenv('CLUSTER_AMBANG', '0.10')),
-    'batch_embedding': 100,
+    'batch_embedding': int(os.getenv('CLUSTER_BATCH_EMBED', '100')),  # teks per permintaan embedding
+    'jeda_embedding_detik': float(os.getenv('CLUSTER_EMBED_JEDA', '0')),  # jeda antar-batch (turunkan beban kuota)
     # Pemusatan embedding (kurangi vektor rata-rata) sebelum cosine; ambang HARUS dikalibrasi ulang bila diaktifkan.
     'pusatkan': os.getenv('CLUSTER_PUSATKAN', '0') == '1',
 }

@@ -197,3 +197,43 @@ def test_bangun_ulang_dry_run_tidak_mengubah_cluster(hasil):
     assert r.diproses == 3 and r.cluster_baru == 1            # simulasi: yang tervalidasi tidak ikut
     assert (Cluster.objects.count(), ClusterAnggota.objects.count()) == (jumlah_cluster, jumlah_anggota)
     assert r.cluster_dihapus == 0                              # tidak ada yang benar-benar dihapus
+
+
+def test_embedding_disimpan_per_batch_saat_kuota_habis(hasil):
+    class Gagal(EmbedderPalsu):
+        batch = 2
+
+        def embed(self, teks_list):
+            if len(self.panggilan) >= 1:
+                raise LLMResponseError('429')
+            return super().embed(teks_list)
+
+    with pytest.raises(LLMResponseError):
+        ce.pastikan_embedding(list(HasilEkstraksi.objects.order_by('id')), Gagal())
+    assert HasilEkstraksi.objects.exclude(embedding_what__isnull=True).exclude(model_embedding='').count() == 2
+    e = EmbedderPalsu()
+    assert ce.pastikan_embedding(list(HasilEkstraksi.objects.order_by('id')), e) == 4  # hanya sisanya
+
+
+def test_teks_yang_sama_hanya_di_embed_sekali(hasil):
+    for h in hasil[:3]:
+        h.teks_what = 'tetap login setelah update'
+        h.save()
+    HasilEkstraksi.objects.filter(pk=hasil[1].pk).update(teks_what='Tetap  login setelah UPDATE')
+    e = EmbedderPalsu()
+    n = ce.pastikan_embedding(list(HasilEkstraksi.objects.order_by('id')), e)
+    teks_dikirim = [t for b in e.panggilan for t in b]
+    assert n == 6 and len(teks_dikirim) == 4 and VEKTOR.keys() >= set(teks_dikirim)  # 3 duplikat -> 1 teks
+    assert HasilEkstraksi.objects.exclude(embedding_what__isnull=True).count() == 6
+
+
+def test_memakai_ulang_embedding_tersimpan_untuk_teks_sama(hasil):
+    e = EmbedderPalsu()
+    ce.pastikan_embedding(hasil[:2], e)
+    u = Ulasan.objects.create(aplikasi=hasil[0].ulasan.aplikasi, review_id='baru', isi_ulasan='x',
+                              tanggal_ulasan='2026-01-02', skor_bintang=1)
+    h_baru = HasilEkstraksi.objects.create(ulasan=u, teks_who='pengguna', teks_what=hasil[0].teks_what)
+    e2 = EmbedderPalsu()
+    assert ce.pastikan_embedding([h_baru], e2) == 1 and e2.panggilan == []
+    h_baru.refresh_from_db()
+    assert h_baru.embedding_what and h_baru.model_embedding == 'palsu'
